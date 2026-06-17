@@ -746,34 +746,54 @@ window.onbeforeprint = function() {
 }
 </style>
 
+</body></html>
+
+<!-- 星星格數調整控制 -->
+<div class="star-control" style="text-align:center; margin:15px 0; background:#f8f9fa; padding:10px; border-radius:8px;">
+    <button onclick="changeStarCount(-1)" style="background:#4a90e2;color:white;border:none;padding:8px 16px;border-radius:20px;font-size:18px;margin:0 6px;">－</button>
+    <span style="font-size:18px;font-weight:bold;margin:0 12px;">星星格數: <span id="starCountDisplay">12</span></span>
+    <button onclick="changeStarCount(1)" style="background:#4a90e2;color:white;border:none;padding:8px 16px;border-radius:20px;font-size:18px;margin:0 6px;">＋</button>
+</div>
+
+<!-- 一鍵打印功能 -->
+<button onclick="preparePrint()" style="background:#d4af37;color:#333;border:none;padding:15px 40px;font-size:20px;border-radius:50px;cursor:pointer;margin:30px auto;display:block;font-weight:bold;box-shadow:0 4px 15px rgba(212,175,55,0.4);">
+    🖨️ 一鍵生成PDF / 打印實體獎勵表
+</button>
+
 <script>
-// Make totalTokens adjustable
+// === 可調星星格數功能 ===
 let totalTokens = 12;
 
 function changeStarCount(delta) {
     const newCount = totalTokens + delta;
     if (newCount < 3 || newCount > 20) return;
-    
+
     totalTokens = newCount;
-    document.getElementById('starCountDisplay').textContent = totalTokens;
-    
-    // Reset and re-init grid
-    resetBoard();
+    const display = document.getElementById('starCountDisplay');
+    if (display) display.textContent = totalTokens;
+
+    // 重置格子
     const grid = document.getElementById('tokensGrid');
     grid.innerHTML = '';
-    initTokens();
-}
 
-// Override init to use variable
-const originalInit = initTokens;
-initTokens = function() {
-    const grid = document.getElementById('tokensGrid');
     for (let i = 0; i < totalTokens; i++) {
         const slot = document.createElement('div');
         slot.className = 'token-slot';
         slot.innerHTML = '<span class="star">⭐</span>';
-        slot.onclick = function() { toggleToken(this); };
+        slot.onclick = function() {
+            if (typeof toggleToken === 'function') toggleToken(this);
+        };
         grid.appendChild(slot);
     }
+
+    // 重置計數
+    if (typeof filledTokens !== 'undefined') filledTokens = 0;
+    if (typeof updateProgress === 'function') updateProgress();
 }
+
+// 初始顯示數字
+setTimeout(() => {
+    const d = document.getElementById('starCountDisplay');
+    if (d) d.textContent = totalTokens;
+}, 300);
 </script>
