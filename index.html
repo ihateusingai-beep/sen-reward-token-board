@@ -1202,3 +1202,26 @@
     </script>
 </body>
 </html>
+<script>
+// 滿星後保持畫面（不自動清除星星）
+const originalShowCelebration = showCelebration;
+showCelebration = function() {
+    const message = document.getElementById('celebrationMessage');
+    message.classList.add('show');
+    startFireworks();
+    
+    // 5秒後隱藏慶祝訊息，但保留星星狀態
+    setTimeout(() => {
+        message.classList.remove('show');
+        // 在 board 加一個永久完成提示
+        const board = document.querySelector('.token-board');
+        if (board && !document.getElementById('completeBadge')) {
+            const badge = document.createElement('div');
+            badge.id = 'completeBadge';
+            badge.style.cssText = 'text-align:center;margin-top:15px;font-size:22px;color:#2e7d32;font-weight:bold;';
+            badge.innerHTML = '✅ 已滿星完成！';
+            board.appendChild(badge);
+        }
+    }, 5000);
+};
+</script>
