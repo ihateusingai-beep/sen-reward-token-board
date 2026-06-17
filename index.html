@@ -636,3 +636,48 @@ window.onbeforeprint = function() {
     if (typeof ctx !== 'undefined' && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
 };
 </script>
+
+<style>
+/* Mobile responsive improvements */
+@media (max-width: 600px) {
+    body {
+        padding: 10px;
+        align-items: flex-start;
+    }
+    
+    .token-board {
+        padding: 15px;
+        border-radius: 8px;
+    }
+    
+    .board-title {
+        font-size: 20px;
+    }
+    
+    .goal-text {
+        font-size: 20px;
+    }
+    
+    .token-slot {
+        width: 48px !important;
+        height: 48px !important;
+    }
+    
+    .reward-box {
+        width: 90px;
+        height: 90px;
+    }
+    
+    button {
+        padding: 12px 24px;
+        font-size: 18px;
+        width: 90%;
+        margin: 20px auto;
+    }
+    
+    .main-content {
+        flex-direction: column;
+        gap: 15px;
+    }
+}
+</style>
