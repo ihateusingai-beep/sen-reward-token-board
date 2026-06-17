@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant" data-version="2.0.1">
+<html lang="zh-Hant" data-version="2.1.0">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -90,6 +90,30 @@
         .reward-box.has-reward {
             border-style: solid;
             border-color: #4caf50;
+        }
+
+        /* Earned state: every star is filled, the reward is unlocked.
+           Switch to a gold border and a soft glow so the student can
+           see at a glance that they have won the reward. */
+        .reward-box.earned {
+            border-color: #d4af37;
+            border-style: solid;
+            background: linear-gradient(135deg, #fffbe6 0%, #fff3b8 100%);
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.25);
+        }
+
+        .reward-box.earned::after {
+            content: '✨';
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            font-size: 22px;
+            animation: sparkle 1.6s ease-in-out infinite;
+        }
+
+        @keyframes sparkle {
+            0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.85; }
+            50% { transform: scale(1.25) rotate(20deg); opacity: 1; }
         }
 
         .reward-box img {
@@ -207,6 +231,17 @@
             margin-top: 20px;
             font-size: 18px;
             color: #666;
+            transition: color 0.3s, font-weight 0.3s;
+        }
+
+        .progress-text.complete {
+            color: #2e7d32;
+            font-weight: bold;
+            font-size: 22px;
+        }
+
+        .progress-text.complete::after {
+            content: ' 🎉';
         }
 
         .actions {
@@ -360,7 +395,7 @@
             text-align: center;
             z-index: 10000;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-            transition: transform 0.5s ease-out;
+            transition: transform 0.5s ease-out, opacity 0.4s ease;
         }
 
         .celebration-message.show {
@@ -371,6 +406,63 @@
         @keyframes celebrateBounce {
             0%, 100% { transform: translate(-50%, -50%) scale(1); }
             50% { transform: translate(-50%, -50%) scale(1.1); }
+        }
+
+        /* After the fireworks wind down the celebration card scales down
+           and parks itself at the top of the board as a persistent
+           milestone badge. It stays until the student un-fills a star
+           or hits reset, so they can sit with the achievement. */
+        .celebration-message.persistent {
+            top: 20px;
+            transform: translate(-50%, 0) scale(0.6);
+            font-size: 22px;
+            padding: 12px 22px;
+            border-radius: 30px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+        }
+
+        .celebration-message.persistent .sub {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .celebration-message .sub {
+            display: block;
+            font-size: 24px;
+            margin-top: 4px;
+            font-weight: normal;
+        }
+
+        .celebration-message.persistent .sub {
+            display: inline;
+            margin-left: 6px;
+        }
+
+        .celebration-message .dismiss {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            background: rgba(255, 255, 255, 0.25);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .celebration-message .dismiss:hover {
+            background: rgba(255, 255, 255, 0.45);
+        }
+
+        .celebration-message.persistent .dismiss {
+            position: static;
+            margin-left: 8px;
+            vertical-align: middle;
         }
 
         /* ----- Mobile ----- */
@@ -1224,4 +1316,50 @@ showCelebration = function() {
         }
     }, 5000);
 };
+</script>
+<style>
+.reward-size-control {
+    margin-top: 10px;
+    text-align: center;
+}
+.reward-size-control input {
+    width: 60%;
+    vertical-align: middle;
+}
+</style>
+
+<script>
+// Make reward image resizable + editable text
+function updateRewardSize(size) {
+    const img = document.getElementById('rewardImage');
+    if (img) {
+        img.style.width = size + 'px';
+        img.style.height = size + 'px';
+    }
+}
+
+// Allow editing reward text
+function makeRewardTextEditable() {
+    const textDiv = document.getElementById('rewardText');
+    if (!textDiv) return;
+    
+    textDiv.contentEditable = true;
+    textDiv.style.border = '1px dashed #999';
+    textDiv.style.padding = '4px';
+    textDiv.style.minWidth = '80px';
+    
+    textDiv.addEventListener('blur', () => {
+        textDiv.style.border = 'none';
+    });
+}
+
+// Auto init editable + bigger default reward
+setTimeout(() => {
+    const img = document.getElementById('rewardImage');
+    if (img) {
+        img.style.maxWidth = '140px';
+        img.style.maxHeight = '140px';
+    }
+    makeRewardTextEditable();
+}, 800);
 </script>
