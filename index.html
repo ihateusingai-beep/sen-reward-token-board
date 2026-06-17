@@ -681,3 +681,39 @@ window.onbeforeprint = function() {
     }
 }
 </style>
+<style>
+/* Print fix for mobile blank page */
+@media print {
+    * {
+        visibility: visible !important;
+    }
+    
+    body {
+        background: white !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        display: block !important;
+        align-items: normal !important;
+        justify-content: normal !important;
+    }
+    
+    .token-board {
+        box-shadow: none !important;
+        border: 3px solid #333 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 15px !important;
+        display: block !important;
+    }
+    
+    button, canvas, .celebration {
+        display: none !important;
+    }
+    
+    @page {
+        size: A4;
+        margin: 8mm;
+    }
+}
+</style>
