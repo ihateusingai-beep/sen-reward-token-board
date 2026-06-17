@@ -646,7 +646,7 @@
 
     <div class="token-board">
         <div class="board-title">
-            獎勵表 <span contenteditable="true" style="border-bottom:1px dashed #999; padding:0 4px;">Token Board</span>
+             <span contenteditable="true" style="font-size:18px; color:#666; margin-right:8px;">副標題</span> 獎勵表 <span contenteditable="true" style="border-bottom:1px dashed #999; padding:0 4px;">Token Board</span>
         </div>
 
         <div class="main-content">
@@ -1362,4 +1362,22 @@ setTimeout(() => {
     }
     makeRewardTextEditable();
 }, 800);
+</script>
+<!-- 獎勵圖片大小控制 -->
+<div class="reward-size-control" style="text-align:center; margin-top:8px;">
+    <label style="font-size:14px;">圖片大小: </label>
+    <input type="range" min="60" max="200" value="140" oninput="updateRewardSize(this.value)" style="width:120px; vertical-align:middle;">
+    <span id="sizeValue" style="font-size:13px;">140px</span>
+</div>
+
+<script>
+function updateRewardSize(size) {
+    const img = document.getElementById('rewardImage');
+    const val = document.getElementById('sizeValue');
+    if (img) {
+        img.style.width = size + 'px';
+        img.style.height = size + 'px';
+    }
+    if (val) val.textContent = size + 'px';
+}
 </script>
