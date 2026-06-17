@@ -1381,3 +1381,10 @@ function updateRewardSize(size) {
     if (val) val.textContent = size + 'px';
 }
 </script>
+<style>
+@media print {
+    .star-control, .reward-size-control {
+        display: none !important;
+    }
+}
+</style>
