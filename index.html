@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant" data-version="2.0.0">
+<html lang="zh-Hant" data-version="2.0.1">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -431,6 +431,66 @@
             }
         }
 
+        /* ----- Print status toast ----- */
+
+        .print-toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: #323232;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+            z-index: 11000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            max-width: 90vw;
+            text-align: center;
+        }
+
+        .print-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .print-toast.error {
+            background: #c62828;
+        }
+
+        .print-toast button {
+            background: #d4af37;
+            color: #333;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 10px;
+            margin-left: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .print-toast button:hover {
+            background: #b8941f;
+        }
+
+        /* Hidden iframe used for printing. Some browsers (or Chrome with
+           kiosk / corporate policy restrictions) silently swallow the
+           `window.print()` call from the main window. Calling print()
+           inside a sandboxed iframe forces a real user-facing dialog. */
+        #printFrame {
+            position: fixed;
+            right: 0;
+            bottom: 0;
+            width: 0;
+            height: 0;
+            border: 0;
+            visibility: hidden;
+        }
+
         /* ----- Print ----- */
 
         @media print {
@@ -483,6 +543,9 @@
 </head>
 <body>
     <canvas id="fireworksCanvas"></canvas>
+
+    <div class="print-toast" id="printToast" role="status" aria-live="polite"></div>
+    <iframe id="printFrame" title="print" aria-hidden="true"></iframe>
 
     <div class="celebration-message" id="celebrationMessage" aria-hidden="true">
         🎉 太棒了！🎉<br>
@@ -606,6 +669,8 @@
             starPlus: $('starPlus'),
             resetBtn: $('resetBtn'),
             printBtn: $('printBtn'),
+            printToast: $('printToast'),
+            printFrame: $('printFrame'),
         };
 
         dom.ctx = dom.canvas.getContext('2d');
@@ -887,16 +952,163 @@
 
         // ---------- Print ----------
 
-        function preparePrint() {
-            // Pause fireworks so they don't bleed into the printed page.
+        /**
+         * Build a self-contained HTML document for the iframe to print.
+         * We inline only what's on the board so the printed page matches
+         * the on-screen layout 1:1, but free of buttons / canvases /
+         * fireworks / star-control input buttons.
+         */
+        function buildPrintDocument() {
+            const board = document.querySelector('.token-board');
+            if (!board) return '';
+
+            // Clone the board, then strip everything that should not appear
+            // on the printed page (matching the @media print rules).
+            const clone = board.cloneNode(true);
+            clone.querySelectorAll('.actions, .star-control button').forEach((el) => el.remove());
+
+            // Reset the star-control background so it doesn't print as a grey bar.
+            const sc = clone.querySelector('.star-control');
+            if (sc) {
+                sc.style.background = 'transparent';
+                sc.style.padding = '0';
+            }
+
+            const styles = Array.from(document.styleSheets)
+                .map((sheet) => {
+                    try {
+                        return Array.from(sheet.cssRules).map((r) => r.cssText).join('\n');
+                    } catch {
+                        // Cross-origin sheet — skip silently.
+                        return '';
+                    }
+                })
+                .join('\n');
+
+            return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${document.title}</title><style>${styles}</style></head><body>${clone.outerHTML}</body></html>`;
+        }
+
+        let printToastTimer = null;
+        let printManualPrintHandler = null;
+
+        function showPrintToast(message, { error = false, action = null, duration = 0 } = {}) {
+            const toast = dom.printToast;
+            toast.classList.toggle('error', !!error);
+            toast.innerHTML = '';
+            const text = document.createElement('span');
+            text.textContent = message;
+            toast.appendChild(text);
+            if (action) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = action.label;
+                btn.addEventListener('click', action.onClick);
+                toast.appendChild(btn);
+            }
+            toast.classList.add('show');
+
+            clearTimeout(printToastTimer);
+            if (duration > 0) {
+                printToastTimer = setTimeout(() => {
+                    toast.classList.remove('show');
+                }, duration);
+            }
+        }
+
+        function hidePrintToast() {
+            dom.printToast.classList.remove('show');
+            clearTimeout(printToastTimer);
+        }
+
+        /**
+         * Try to print via a hidden iframe. Some browser configurations
+         * (Chrome kiosk mode, certain corporate policies, a few mobile
+         * browsers) silently swallow `window.print()` from the main window
+         * — but `iframe.contentWindow.print()` reliably pops a dialog.
+         */
+        function tryIframePrint() {
+            return new Promise((resolve) => {
+                const frame = dom.printFrame;
+                const html = buildPrintDocument();
+                if (!html) {
+                    resolve({ ok: false, reason: 'no-content' });
+                    return;
+                }
+
+                // Use srcdoc so the document is same-origin and we can call
+                // print() on its contentWindow.
+                frame.onload = () => {
+                    let printed = false;
+                    try {
+                        frame.contentWindow.focus();
+                        frame.contentWindow.print();
+                        printed = true;
+                    } catch (e) {
+                        resolve({ ok: false, reason: 'iframe-print-threw', err: e.message });
+                        return;
+                    }
+                    // We can't synchronously know whether the dialog appeared,
+                    // but a successful print() call resolves.
+                    setTimeout(() => resolve({ ok: printed }), 200);
+                };
+                frame.srcdoc = html;
+            });
+        }
+
+        function tryWindowPrint() {
+            try {
+                window.print();
+                return { ok: true };
+            } catch (e) {
+                return { ok: false, reason: 'window-print-threw', err: e.message };
+            }
+        }
+
+        async function preparePrint() {
+            // Freeze any in-flight animation so it doesn't bleed into the print page.
             printFireworks = true;
             stopFireworks();
             dom.celebration.classList.remove('show');
             clearTimeout(celebrationTimer);
-            setTimeout(() => {
-                printFireworks = false;
-                window.print();
-            }, PRINT_DELAY_MS);
+
+            showPrintToast('準備打印中…', { duration: 2000 });
+
+            // Strategy 1: iframe print. Most reliable across restricted browsers.
+            const iframeResult = await tryIframePrint();
+            if (iframeResult.ok) {
+                // Iframe print returns immediately; show "done" hint briefly.
+                showPrintToast('已叫出打印對話框 — 請揀「另存為 PDF」或印表機', {
+                    duration: 5000,
+                    action: {
+                        label: '再試一次',
+                        onClick: () => preparePrint(),
+                    },
+                });
+                return;
+            }
+
+            // Strategy 2: window.print() fallback.
+            const winResult = tryWindowPrint();
+            if (winResult.ok) {
+                showPrintToast('已叫出打印對話框 — 請揀「另存為 PDF」或印表機', {
+                    duration: 5000,
+                    action: {
+                        label: '再試一次',
+                        onClick: () => preparePrint(),
+                    },
+                });
+                return;
+            }
+
+            // Both failed — surface a clear error and offer a manual fallback.
+            showPrintToast('瀏覽器封鎖咗打印功能,請用鍵盤快捷鍵', {
+                error: true,
+                duration: 0,
+                action: {
+                    label: '我已用 Cmd/Ctrl+P 打印',
+                    onClick: () => hidePrintToast(),
+                },
+            });
         }
 
         window.addEventListener('beforeprint', () => {
@@ -905,6 +1117,7 @@
         });
         window.addEventListener('afterprint', () => {
             printFireworks = false;
+            hidePrintToast();
         });
 
         // ---------- Keyboard shortcuts ----------
