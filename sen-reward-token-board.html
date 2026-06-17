@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEN 獎勵卡 - Token Reward Board</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+            background: #f0f4f8;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .token-board {
+            background: white;
+            border: 3px solid #333;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 700px;
+            width: 100%;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .board-title {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .board-title span {
+            color: #666;
+            font-size: 18px;
+            margin-left: 10px;
+        }
+
+        .main-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 30px;
+        }
+
+        .goal-text {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+            flex: 1;
+        }
+
+        .reward-box {
+            width: 120px;
+            height: 120px;
+            border: 3px dashed #4a90e2;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8f9fa;
+            position: relative;
+        }
+
+        .reward-box:hover {
+            background: #e3f2fd;
+            transform: scale(1.05);
+        }
+
+        .reward-box.has-reward {
+            border-style: solid;
+            border-color: #4caf50;
+        }
+
+        .reward-box img {
+            width: 70px;
+            height: 70px;
+            object-fit: contain;
+        }
+
+        .reward-box .reward-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            text-align: center;
+        }
+
+        .reward-placeholder {
+            color: #999;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .tokens-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .token-slot {
+            aspect-ratio: 1;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #fafafa;
+            font-size: 40px;
+        }
+
+        .token-slot:hover {
+            background: #fff9c4;
+            border-color: #ffc107;
+            transform: scale(1.1);
+        }
+
+        .token-slot.filled {
+            background: #fff9c4;
+            border-color: #ffc107;
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        .token-slot .star {
+            display: none;
+            font-size: 40px;
+        }
+
+        .token-slot.filled .star {
+            display: block;
+        }
+
+        /* Canvas for fireworks */
+        #fireworksCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .reward-options {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+
+        .reward-option {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .reward-option:hover {
+            border-color: #4a90e2;
+            background: #e3f2fd;
+            transform: scale(1.05);
+        }
+
+        .reward-option img {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+            margin-bottom: 8px;
+        }
+
+        .reward-option .option-text {
+            font-size: 14px;
+            color: #333;
+        }
+
+        .modal-close {
+            display: block;
+            margin: 20px auto 0;
+            padding: 10px 30px;
+            background: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .modal-close:hover {
+            background: #357abd;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 18px;
+            color: #666;
+        }
+
+        .reset-btn {
+            display: block;
+            margin: 20px auto 0;
+            padding: 10px 30px;
+            background: #ff5722;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .reset-btn:hover {
+            background: #e64a19;
+        }
+
+        /* Celebration message */
+        .celebration-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 60px;
+            border-radius: 20px;
+            font-size: 48px;
+            font-weight: bold;
+            text-align: center;
+            z-index: 10000;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            transition: transform 0.5s ease-out;
+        }
+
+        .celebration-message.show {
+            transform: translate(-50%, -50%) scale(1);
+            animation: celebrateBounce 1s ease-out;
+        }
+
+        @keyframes celebrateBounce {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+        }
+
+        @media (max-width: 600px) {
+            .tokens-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            
+            .reward-options {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            .goal-text {
+                font-size: 22px;
+            }
+
+            .celebration-message {
+                font-size: 32px;
+                padding: 30px 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="fireworksCanvas"></canvas>
+    
+    <div class="celebration-message" id="celebrationMessage">
+        🎉 太棒了！🎉<br>
+        <span style="font-size: 24px;">你做到了！</span>
+    </div>
+
+    <div class="token-board">
+        <div class="board-title">
+            代幣貼紙板 <span>Token Board</span>
+        </div>
+        
+        <div class="main-content">
+            <div class="goal-text">我正在努力獲得</div>
+            <div class="reward-box" id="rewardBox" onclick="openRewardModal()">
+                <div class="reward-placeholder" id="rewardPlaceholder">點擊選擇獎勵</div>
+                <img id="rewardImage" style="display: none;">
+                <div class="reward-text" id="rewardText"></div>
+            </div>
+        </div>
+
+        <div class="tokens-grid" id="tokensGrid">
+            <!-- Tokens will be generated by JavaScript -->
+        </div>
+
+        <div class="progress-text" id="progressText">已獲得: 0 / 12 顆星</div>
+        <button class="reset-btn" onclick="resetBoard()">重置貼紙板</button>
+    </div>
+
+    <!-- Reward Selection Modal -->
+    <div class="modal-overlay" id="rewardModal">
+        <div class="modal">
+            <h2>選擇獎勵</h2>
+            <div class="reward-options">
+                <div class="reward-option" onclick="selectReward('iPad', '📱')">
+                    <div style="font-size: 50px; margin-bottom: 8px;">📱</div>
+                    <div class="option-text">iPad</div>
+                </div>
+                <div class="reward-option" onclick="selectReward('冰淇淋', '🍦')">
+                    <div style="font-size: 50px; margin-bottom: 8px;">🍦</div>
+                    <div class="option-text">冰淇淋</div>
+                </div>
+                <div class="reward-option" onclick="selectReward('玩具車', '🚗')">
+                    <div style="font-size: 50px; margin-bottom: 8px;">🚗</div>
+                    <div class="option-text">玩具車</div>
+                </div>
+                <div class="reward-option" onclick="selectReward('圖書', '📚')">
+                    <div style="font-size: 50px; margin-bottom: 8px;">📚</div>
+                    <div class="option-text">圖書</div>
+                </div>
+                <div class="reward-option" onclick="selectReward('足球', '⚽')">
+                    <div style="font-size: 50px; margin-bottom: 8px;">⚽</div>
+                    <div class="option-text">足球</div>
+                </div>
+                <div class="reward-option" onclick="selectReward('餅乾', '🍪')">
+                    <div style="font-size: 50px; margin-bottom: 8px;">🍪</div>
+                    <div class="option-text">餅乾</div>
+                </div>
+                <div class="reward-option" onclick="selectReward('獎盃', '🏆')">
+                    <div style="font-size: 50px; margin-bottom: 8px;">🏆</div>
+                    <div class="option-text">獎盃</div>
+                </div>
+                <div class="reward-option" onclick="selectReward('氣球', '🎈')">
+                    <div style="font-size: 50px; margin-bottom: 8px;">🎈</div>
+                    <div class="option-text">氣球</div>
+                </div>
+                <div class="reward-option" onclick="selectReward('巧克力', '🍫')">
+                    <div style="font-size: 50px; margin-bottom: 8px;">🍫</div>
+                    <div class="option-text">巧克力</div>
+                </div>
+                <div class="reward-option" onclick="selectReward('果汁', '🧃')">
+                    <div style="font-size: 50px; margin-bottom: 8px;">🧃</div>
+                    <div class="option-text">果汁</div>
+                </div>
+                <div class="reward-option" onclick="selectReward('蠟筆', '🖍️')">
+                    <div style="font-size: 50px; margin-bottom: 8px;">🖍️</div>
+                    <div class="option-text">蠟筆</div>
+                </div>
+                <div class="reward-option" onclick="selectReward('拼圖', '🧩')">
+                    <div style="font-size: 50px; margin-bottom: 8px;">🧩</div>
+                    <div class="option-text">拼圖</div>
+                </div>
+            </div>
+            <button class="modal-close" onclick="closeRewardModal()">關閉</button>
+        </div>
+    </div>
+
+    <script>
+        let filledTokens = 0;
+        const totalTokens = 12;
+        let fireworksActive = false;
+
+        // Canvas setup for fireworks
+        const canvas = document.getElementById('fireworksCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // Fireworks particles
+        let particles = [];
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                const angle = Math.random() * Math.PI * 2;
+                const velocity = Math.random() * 6 + 2;
+                this.vx = Math.cos(angle) * velocity;
+                this.vy = Math.sin(angle) * velocity;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.015 + 0.01;
+                this.gravity = 0.1;
+            }
+
+            update() {
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+                this.vy += this.gravity;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= this.decay;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function createFirework(x, y) {
+            const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffa500', '#ff1493'];
+            const particleCount = 80;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+        function animateFireworks() {
+            if (!fireworksActive && particles.length === 0) return;
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            particles = particles.filter(particle => {
+                particle.update();
+                particle.draw();
+                return particle.alpha > 0;
+            });
+
+            // Launch fireworks from bottom
+            if (fireworksActive && Math.random() < 0.05) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * (canvas.height * 0.5);
+                createFirework(x, y);
+            }
+
+            requestAnimationFrame(animateFireworks);
+        }
+
+        function startFireworks() {
+            fireworksActive = true;
+            
+            // Initial burst
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    const x = Math.random() * canvas.width;
+                    const y = Math.random() * (canvas.height * 0.5) + 100;
+                    createFirework(x, y);
+                }, i * 300);
+            }
+
+            animateFireworks();
+
+            // Stop fireworks after 5 seconds
+            setTimeout(() => {
+                fireworksActive = false;
+            }, 5000);
+        }
+
+        function showCelebration() {
+            const message = document.getElementById('celebrationMessage');
+            message.classList.add('show');
+            startFireworks();
+
+            setTimeout(() => {
+                message.classList.remove('show');
+            }, 4000);
+        }
+
+        // Initialize token grid
+        function initTokens() {
+            const grid = document.getElementById('tokensGrid');
+            for (let i = 0; i < totalTokens; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'token-slot';
+                slot.innerHTML = '<span class="star">⭐</span>';
+                slot.onclick = function() {
+                    toggleToken(this);
+                };
+                grid.appendChild(slot);
+            }
+        }
+
+        // Toggle token star
+        function toggleToken(slot) {
+            if (slot.classList.contains('filled')) {
+                slot.classList.remove('filled');
+                filledTokens--;
+            } else {
+                slot.classList.add('filled');
+                filledTokens++;
+                
+                // Check if all tokens are filled
+                if (filledTokens === totalTokens) {
+                    setTimeout(() => {
+                        showCelebration();
+                    }, 300);
+                }
+            }
+            updateProgress();
+        }
+
+        // Update progress text
+        function updateProgress() {
+            document.getElementById('progressText').textContent = 
+                `已獲得: ${filledTokens} / ${totalTokens} 顆星`;
+        }
+
+        // Open reward modal
+        function openRewardModal() {
+            document.getElementById('rewardModal').classList.add('active');
+        }
+
+        // Close reward modal
+        function closeRewardModal() {
+            document.getElementById('rewardModal').classList.remove('active');
+        }
+
+        // Select reward
+        function selectReward(name, emoji) {
+            const rewardBox = document.getElementById('rewardBox');
+            const placeholder = document.getElementById('rewardPlaceholder');
+            const image = document.getElementById('rewardImage');
+            const text = document.getElementById('rewardText');
+
+            placeholder.style.display = 'none';
+            image.style.display = 'block';
+            image.src = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='50' y='65' font-size='70' text-anchor='middle'%3E${emoji}%3C/text%3E%3C/svg%3E`;
+            text.textContent = name;
+            rewardBox.classList.add('has-reward');
+
+            closeRewardModal();
+        }
+
+        // Reset board
+        function resetBoard() {
+            const slots = document.querySelectorAll('.token-slot');
+            slots.forEach(slot => {
+                slot.classList.remove('filled');
+            });
+            filledTokens = 0;
+            updateProgress();
+            fireworksActive = false;
+            particles = [];
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('rewardModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeRewardModal();
+            }
+        });
+
+        // Initialize
+        initTokens();
+    </script>
+
+    <!-- 一鍵打印功能 -->
+    <button onclick="preparePrint()" style="background:#d4af37;color:#333;border:none;padding:15px 40px;font-size:20px;border-radius:50px;cursor:pointer;margin:30px auto;display:block;font-weight:bold;box-shadow:0 4px 15px rgba(212,175,55,0.4);">
+        🖨️ 一鍵生成PDF / 打印實體獎勵表
+    </button>
+
+    <style>
+        @media print {
+            button { display: none !important; }
+            body { background: white; padding: 0; }
+            .token-board { box-shadow: none; border: 3px solid #333; max-width: 100%; }
+            @page { size: A4; margin: 10mm; }
+        }
+    </style>
+</body>
+</html>
+<script>
+// 打印準備函數 - 解決滿星動畫後無法打印問題
+function preparePrint() {
+    fireworksActive = false;
+    if (typeof ctx !== 'undefined' && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const message = document.getElementById('celebrationMessage');
+    if (message) message.classList.remove('show');
+    setTimeout(() => window.print(), 100);
+}
+
+window.onbeforeprint = function() {
+    fireworksActive = false;
+    if (typeof ctx !== 'undefined' && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+};
+</script>
