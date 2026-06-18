@@ -145,11 +145,72 @@
             font-size: 26px;
             cursor: pointer;
             transition: all 0.2s;
+            background: #fafafa;
+            position: relative;
+            overflow: visible;
         }
-
+        /* v3.2.1 — empty slot shows hollow ☆ (grey), filled shows solid ⭐ (gold) */
+        .token-slot .star {
+            color: #c8c8c8;
+            opacity: 0.55;
+            transition: color 0.2s, opacity 0.2s, transform 0.2s;
+        }
+        .token-slot:hover .star { opacity: 0.85; transform: scale(1.08); }
+        .token-slot:focus-visible .star { opacity: 0.85; }
         .token-slot.filled {
             background: #fff9c4;
             border-color: #ffc107;
+        }
+        .token-slot.filled .star {
+            color: #f5a623;
+            opacity: 1;
+            transform: scale(1);
+            text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+        }
+        /* v3.2.1 — per-click pulse feedback (one-shot, JS retriggers by toggling class) */
+        @keyframes starFillPulse {
+            0%   { transform: scale(1);   filter: drop-shadow(0 0 0   rgba(245,166,35,0)); }
+            35%  { transform: scale(1.45); filter: drop-shadow(0 0 10px rgba(245,166,35,0.85)); }
+            70%  { transform: scale(0.92); filter: drop-shadow(0 0 4px  rgba(245,166,35,0.45)); }
+            100% { transform: scale(1);   filter: drop-shadow(0 0 0   rgba(245,166,35,0)); }
+        }
+        @keyframes starUnfillShrink {
+            0%   { transform: scale(1);    opacity: 1; }
+            40%  { transform: scale(0.55); opacity: 0.35; }
+            100% { transform: scale(1);    opacity: 0.55; }
+        }
+        .token-slot.filling .star    { animation: starFillPulse   420ms cubic-bezier(.34,1.56,.64,1); }
+        .token-slot.unfilling .star  { animation: starUnfillShrink 280ms ease-out; }
+        @media (prefers-reduced-motion: reduce) {
+            .token-slot.filling .star,
+            .token-slot.unfilling .star { animation: none !important; }
+            .fill-flash, .unfill-puff { display: none !important; }
+        }
+        /* v3.2.1 — overlay flash/puff elements */
+        .fill-flash {
+            position: absolute;
+            inset: -6px;
+            border-radius: 12px;
+            pointer-events: none;
+            background: radial-gradient(circle at center, rgba(255,215,90,0.85) 0%, rgba(255,215,90,0) 65%);
+            animation: fillFlashAnim 480ms ease-out forwards;
+        }
+        @keyframes fillFlashAnim {
+            0%   { opacity: 0; transform: scale(0.4); }
+            30%  { opacity: 1; }
+            100% { opacity: 0; transform: scale(1.6); }
+        }
+        .unfill-puff {
+            position: absolute;
+            inset: 0;
+            border-radius: 8px;
+            pointer-events: none;
+            border: 2px solid #bbb;
+            animation: unfillPuffAnim 320ms ease-out forwards;
+        }
+        @keyframes unfillPuffAnim {
+            0%   { opacity: 0.8; transform: scale(1);    border-width: 3px; }
+            100% { opacity: 0;   transform: scale(1.8);  border-width: 1px; }
         }
 
         .progress {
@@ -447,6 +508,9 @@
             body { background: white; padding: 0; }
             .token-board { box-shadow: none; border: 3px solid #333; max-width: 100%; }
             .print-btn, .star-control, .reward-size-control, canvas, .print-toast { display: none !important; }
+            /* Print 已得嘅星做實色 ⭐,未得嘅保持 ☆ 但淡 */
+            .token-slot .star { color: #555; opacity: 0.3; }
+            .token-slot.filled .star { color: #f5a623; opacity: 1; }
             @page { size: A4; margin: 10mm; }
         }
 
@@ -554,6 +618,26 @@
                 <option value="true">靜音</option>
             </select>
         </div>
+        <div class="settings-row">
+            <label for="settingPop">取消星聲</label>
+            <select id="settingPop" data-setting="popSound">
+                <option value="pop-classic">電子 click</option>
+                <option value="pop-soft">柔和</option>
+                <option value="pop-bubble">泡泡</option>
+                <option value="pop-wood">木魚</option>
+                <option value="pop-mute">無聲</option>
+            </select>
+        </div>
+        <div class="settings-row">
+            <label for="settingTap">獲得星聲</label>
+            <select id="settingTap" data-setting="tapSound">
+                <option value="tap-classic">明亮鈴</option>
+                <option value="tap-soft">溫柔木</option>
+                <option value="tap-chime">風鈴</option>
+                <option value="tap-blip">太空</option>
+                <option value="tap-mute">無聲</option>
+            </select>
+        </div>
         <div class="settings-hint">設定會自動儲存</div>
     </div>
 
@@ -603,6 +687,8 @@
             STORAGE_KEY: 'sen-reward-board:v3.2.0',
             DEFAULT_VFX_MODE: 'combo',
             DEFAULT_MUTED: false,
+            DEFAULT_POP_SOUND: 'pop-classic',
+            DEFAULT_TAP_SOUND: 'tap-classic',
         });
 
         // ===== String constants (was magic strings) =====
@@ -645,6 +731,8 @@
                 settingsPanel:     $('settingsPanel'),
                 settingVfx:        $('settingVfx'),
                 settingMute:       $('settingMute'),
+                settingPop:        $('settingPop'),     // v3.2.1 — pop sound preset
+                settingTap:        $('settingTap'),     // v3.2.1 — tap sound preset
                 body:              document.body,
                 board:             document.querySelector('.token-board'),
                 starControl:       document.querySelector('.star-control'),
@@ -698,22 +786,37 @@
                 const slot = el('div', { className: CLS.STAR_SLOT });
                 slot.tabIndex = 0;
                 slot.setAttribute('role', 'button');
-                slot.setAttribute('aria-label', `星星格 ${i + 1}`);
-                slot.innerHTML = '<span class="star">⭐</span>';
+                slot.setAttribute('aria-label', `星星格 ${i + 1}，未獲得`);
+                // v3.2.1 — empty uses hollow ☆, fill swaps to solid ⭐
+                slot.innerHTML = '<span class="star" aria-hidden="true">☆</span>';
                 DOM.tokensGrid.appendChild(slot);
             }
             updateProgress();
         }
 
         function toggleToken(slot) {
+            const star = slot.querySelector('.star');
             if (slot.classList.contains(CLS.FILLED)) {
                 slot.classList.remove(CLS.FILLED);
+                if (star) star.textContent = '☆';
+                slot.setAttribute('aria-label', slot.getAttribute('aria-label').replace('已獲得','未獲得'));
                 State.filledTokens--;
                 if (!State.muted) SFX.tickOff();
+                // v3.2.1 — retrigger CSS animation by remove→reflow→add
+                slot.classList.remove('filling');
+                slot.classList.add('unfilling');
+                // tiny particle puff on unfill (CSS-only, no canvas)
+                puffUnfill(slot);
             } else {
                 slot.classList.add(CLS.FILLED);
+                if (star) star.textContent = '⭐';
+                slot.setAttribute('aria-label', slot.getAttribute('aria-label').replace('未獲得','已獲得'));
                 State.filledTokens++;
                 if (!State.muted) SFX.tickOn();
+                // v3.2.1 — fill pulse + radial flash
+                slot.classList.remove('unfilling');
+                slot.classList.add('filling');
+                flashFill(slot);
                 if (State.filledTokens === State.totalTokens) {
                     // Guard against multi-fire from rapid clicks
                     if (State.pendingFullCheck) return;
@@ -724,6 +827,21 @@
                 }
             }
             updateProgress();
+        }
+
+        // v3.2.1 — radial gradient flash on fill (CSS-only, additive overlay)
+        function flashFill(slot) {
+            const f = document.createElement('span');
+            f.className = 'fill-flash';
+            slot.appendChild(f);
+            f.addEventListener('animationend', () => f.remove(), { once: true });
+        }
+        // v3.2.1 — grey puff on unfill
+        function puffUnfill(slot) {
+            const p = document.createElement('span');
+            p.className = 'unfill-puff';
+            slot.appendChild(p);
+            p.addEventListener('animationend', () => p.remove(), { once: true });
         }
 
         function updateProgress() {
@@ -951,12 +1069,65 @@
             };
 
             // Note: a tone + a sweep is fine on their own; arpeggio = sequence of tones.
+            // v3.2.1 — pop sound preset registry. tickOff() reads State.popSound.
+            const POP_PRESETS = Object.freeze({
+                'pop-classic': () => tone('square', 220, 0.04, 0.08),                 // 傳統電子 click
+                'pop-soft':    () => tone('triangle', 440, 0.05, 0.06),               // 柔和「嘟」
+                'pop-bubble':  () => {                                                 // 泡泡破
+                    sweep('sine', 600, 300, 0.08, 0.10);
+                    // noise tail via BufferSource (white noise burst, 30ms)
+                    const ac = ensure(); if (!ac) return;
+                    const buf = ac.createBuffer(1, ac.sampleRate * 0.03, ac.sampleRate);
+                    const data = buf.getChannelData(0);
+                    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+                    const src = ac.createBufferSource();
+                    const env = ac.createGain();
+                    src.buffer = buf;
+                    env.gain.setValueAtTime(0.04, ac.currentTime);
+                    env.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.03);
+                    src.connect(env).connect(ac.destination);
+                    src.start();
+                    src.stop(ac.currentTime + 0.03);
+                },
+                'pop-wood':    () => tone('square', 180, 0.005, 0.12),                // 木魚「咔」
+                'pop-mute':    () => { /* silent */ },                                // 暫停(pop 嗰下)
+            });
+            const DEFAULT_POP = 'pop-classic';
+
+            // v3.2.1 — tap sound preset registry. tickOn() reads State.tapSound.
+            const TAP_PRESETS = Object.freeze({
+                'tap-classic': () => {                                                // 明亮鈴:880 + 1320 harmonic
+                    tone('triangle', 880, 0.06, 0.10);
+                    tone('triangle', 1320, 0.04, 0.05);
+                },
+                'tap-soft':    () => tone('triangle', 660, 0.08, 0.08),               // 溫柔木
+                'tap-chime':   () => {                                                // 風鈴 do-mi-sol 120ms 內
+                    [1200, 1500, 1800].forEach((f, i) =>
+                        setTimeout(() => tone('sine', f, 0.10, 0.08), i * 40));
+                },
+                'tap-blip':    () => sweep('sine', 1320, 880, 0.06, 0.10),             // 太空(Mario coin)
+                'tap-mute':    () => { /* silent */ },                                // 暫停(tap 嗰下)
+            });
+            const DEFAULT_TAP = 'tap-classic';
+
             return {
                 isAvailable: () => !!ensure(),
                 resume,
+                POP_PRESETS,
+                DEFAULT_POP,
+                TAP_PRESETS,
+                DEFAULT_TAP,
                 // 5 SFX touchpoints (per user choice)
-                tickOn:    () => tone('triangle', 880, 0.06, 0.12),          // toggleToken on
-                tickOff:   () => tone('square',   220, 0.04, 0.08),          // toggleToken off
+                tickOn:    () => {                                          // v3.2.1 — tap preset
+                    const preset = (State && State.tapSound) || DEFAULT_TAP;
+                    const fn = TAP_PRESETS[preset] || TAP_PRESETS[DEFAULT_TAP];
+                    fn();
+                },
+                tickOff:   () => {                                          // v3.2.1 — pop preset
+                    const preset = (State && State.popSound) || DEFAULT_POP;
+                    const fn = POP_PRESETS[preset] || POP_PRESETS[DEFAULT_POP];
+                    fn();
+                },
                 celebrate: () => {                                          // 滿星 arpeggio do-mi-sol-do
                     const seq = [660, 784, 880, 1046];
                     seq.forEach((f, i) => setTimeout(() => tone('triangle', f, 0.12, 0.18), i * 110));
@@ -992,6 +1163,10 @@
         State.vfxMode = Settings.get('vfxMode') || CONFIG.DEFAULT_VFX_MODE;
         State.muted   = Settings.get('muted')   ?? CONFIG.DEFAULT_MUTED;
         State.rewardEmoji = Settings.get('rewardEmoji') || CONFIG.DEFAULT_EMOJI;
+        // v3.2.1 — pop sound preset
+        State.popSound = Settings.get('popSound') || CONFIG.DEFAULT_POP_SOUND;
+        // v3.2.1 — tap sound preset
+        State.tapSound = Settings.get('tapSound') || CONFIG.DEFAULT_TAP_SOUND;
 
         function toggleSettingsPanel() {
             const open = DOM.settingsPanel.hasAttribute('hidden');
@@ -1001,6 +1176,8 @@
                 // Sync selects with current State
                 DOM.settingVfx.value = State.vfxMode;
                 DOM.settingMute.value = State.muted ? 'true' : 'false';
+                if (DOM.settingPop) DOM.settingPop.value = State.popSound;
+                if (DOM.settingTap) DOM.settingTap.value = State.tapSound;
             } else {
                 DOM.settingsPanel.setAttribute('hidden', '');
                 DOM.settingsGear.setAttribute('aria-expanded', 'false');
@@ -1349,6 +1526,23 @@
                 Settings.set('muted', State.muted);
                 if (!State.muted) SFX.resume();  // unlock audio on first unmute
             });
+            // v3.2.1 — pop sound preset change: persist + immediate preview
+            if (DOM.settingPop) {
+                DOM.settingPop.addEventListener('change', (ev) => {
+                    State.popSound = ev.target.value;
+                    Settings.set('popSound', State.popSound);
+                    // Preview so user can hear before closing panel
+                    if (!State.muted) SFX.tickOff();
+                });
+            }
+            // v3.2.1 — tap sound preset change: persist + immediate preview
+            if (DOM.settingTap) {
+                DOM.settingTap.addEventListener('change', (ev) => {
+                    State.tapSound = ev.target.value;
+                    Settings.set('tapSound', State.tapSound);
+                    if (!State.muted) SFX.tickOn();
+                });
+            }
 
             // v3.2.0 — Esc closes settings panel (when emoji picker is closed)
             DOM.body.addEventListener('keydown', (ev) => {

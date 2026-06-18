@@ -2,7 +2,7 @@
 
 > A lightweight, print-friendly reward board for teachers and parents. Tap stars, tap reward tokens, drag to count — print the result.
 
-**Latest release: [v3.2.0](CHANGELOG.md) — 2026-06-18** · SFX + VFX modes + emoji expansion + settings panel
+**Latest release: [v3.2.1](CHANGELOG.md) — 2026-06-19** · Fix empty-slot visual + per-click feedback + sound presets
 
 ---
 
@@ -33,9 +33,12 @@ python3 -m http.server 8000
 - ⌨️ **Custom unicode paste** for any emoji
 - 🕘 **Recent 5 remembered** across sessions
 
-### Delight (v3.2.0)
+### Delight (v3.2.0 + v3.2.1)
 - 🔊 **Synthetic SFX** — star fills, reward pops, print whoosh. Toggle mute in ⚙️
 - 🎨 **5 VFX modes** — combo / spark / confetti / star / none
+- 🎵 **5 pop presets** (unfill) — classic / soft / bubble / wood / mute
+- 🎶 **5 tap presets** (fill) — bell / gentle wood / wind chime / Mario coin / mute
+- ✨ **Per-click feedback** — fill pulse + gold flash, unfill shrink + grey puff
 - ⚙️ **Settings panel** — all preferences persisted
 
 ### Accessibility (since v3.1.0)
@@ -59,7 +62,8 @@ See [CHANGELOG.md](CHANGELOG.md) for full history.
 
 | Version | Date | Headline |
 |---|---|---|
-| **3.2.0** | 2026-06-18 | SFX + VFX modes + emoji expansion + settings panel |
+| **3.2.1** | 2026-06-19 | Fix empty-slot visual + per-click feedback + 5 pop + 5 tap sound presets |
+| 3.2.0 | 2026-06-18 | SFX + VFX modes + emoji expansion + settings panel |
 | 3.1.0 | 2026-06-17 | Keyboard nav + reduced-motion + emoji picker |
 | 3.0.0 | 2026-06-15 | Initial public release |
 

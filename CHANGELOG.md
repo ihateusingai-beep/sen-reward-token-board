@@ -4,6 +4,50 @@ All notable changes to **Sen Reward Token Board** are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versioning follows [Semantic Versioning](https://semver.org/).
 
+## [3.2.1] — 2026-06-19
+
+### Fixed — Star default visual
+- Empty slot now renders hollow `☆` (U+2606, grey 55% opacity)
+- Filled slot renders solid `⭐` (U+2B50, gold + drop-shadow)
+- Hover/focus on empty slot lifts opacity to 85% + scale 1.08 (affordance hint)
+- A11y: `aria-label` toggles "未獲得 / 已獲得" on click
+- Print: `☆` forced to 30% opacity, `⭐` to 100% for clear printout
+
+### Added — Per-click feedback
+- **Fill pulse animation** — `starFillPulse` 420 ms bounce (1 → 1.45 → 0.92 → 1) + gold `drop-shadow` flash
+- **Fill radial flash overlay** — gold radial gradient expanding from center (480 ms, scale 0.4 → 1.6)
+- **Unfill shrink animation** — `starUnfillShrink` 280 ms (1 → 0.55 → 1) + opacity dip
+- **Unfill puff overlay** — grey border expanding outward (320 ms, scale 1 → 1.8)
+- All animations disabled under `prefers-reduced-motion: reduce`
+
+### Added — Sound presets (Settings panel)
+- **Pop presets (unfill)**: 5 options
+  - `pop-classic` ⭐ default — 220 Hz square, 30 ms "click"
+  - `pop-soft` — 440 Hz triangle, 50 ms "soft ding"
+  - `pop-bubble` — 600→300 Hz sine sweep + white noise burst, "bubble pop"
+  - `pop-wood` — 180 Hz square, 5 ms "wood block"
+  - `pop-mute` — silent
+- **Tap presets (fill)**: 5 options
+  - `tap-classic` ⭐ default — 880 Hz triangle + 1320 Hz harmonic, "bright bell"
+  - `tap-soft` — 660 Hz triangle, 80 ms "gentle wood"
+  - `tap-chime` — 1200/1500/1800 Hz sine arpeggio, "wind chime"
+  - `tap-blip` — 1320→880 Hz sine sweep, "Mario coin"
+  - `tap-mute` — silent
+- Selection persists to `localStorage` (keys `popSound`, `tapSound`)
+- Selecting a preset immediately previews the sound (if unmuted)
+
+### Preserved
+- Reward box, tokens grid, progress, print button layout — **unchanged**
+- Print fallback chain (iframe + srcdoc + window + toast) — **unchanged**
+- v3.1.0 + v3.2.0 a11y + reduced-motion behavior — **still in effect**
+- Settings panel hidden in `@media print` — sound selectors **never leak to print**
+
+### Quality
+- 1394 → **1571 lines** (+177, all additive)
+- Single self-contained `index.html`, zero external deps
+- `node --check` syntax OK
+- All SFX still Web Audio synth (no mp3, no external assets)
+
 ## [3.2.0] — 2026-06-18
 
 ### Added — Feedback & Delight
