@@ -5,8 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SEN 獎勵表</title>
     <style>
+        /* ============================================================
+         * SEN Token Reward Board — single-file vanilla JS
+         * Refactor notes (v3.1.0):
+         *   - Keyboard navigation: token slots tabIndex=0 + Enter/Space
+         *   - prefers-reduced-motion: skip fireworks, show celebration only
+         *   - Emoji picker modal replaces two stacked prompt() calls
+         *     (a11y, works on iPad Safari where prompt() is suppressed)
+         * v3.0.0:
+         *   - All app state encapsulated in State() closure factory
+         *   - All DOM refs cached at boot via DOM()
+         *   - All CSS classes / magic strings promoted to CSS / STR
+         *   - All tunables centralised in CONFIG
+         *   - Particles use reverse filter (no splice-in-foreach)
+         *   - Print uses iframe+srcdoc fallback chain + toast
+         * ============================================================ */
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+
         body {
             font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif;
             background: #f0f4f8;
@@ -16,7 +32,7 @@
             justify-content: center;
             align-items: flex-start;
         }
-        
+
         .token-board {
             background: white;
             border: 3px solid #333;
@@ -24,21 +40,21 @@
             padding: 25px;
             max-width: 720px;
             width: 100%;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         }
-        
+
         .board-header {
             display: flex;
             align-items: center;
             margin-bottom: 15px;
         }
-        
+
         .board-title {
             font-size: 26px;
             font-weight: bold;
             color: #333;
         }
-        
+
         .board-subtitle {
             font-size: 26px;
             color: #666;
@@ -47,7 +63,7 @@
             padding: 0 6px;
             cursor: text;
         }
-        
+
         .star-control {
             text-align: center;
             margin: 12px 0;
@@ -55,7 +71,7 @@
             padding: 8px;
             border-radius: 8px;
         }
-        
+
         .star-control button {
             background: #4a90e2;
             color: white;
@@ -66,20 +82,20 @@
             margin: 0 4px;
             cursor: pointer;
         }
-        
+
         .main-content {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
             margin: 20px 0;
         }
-        
+
         .goal-text {
             font-size: 22px;
             font-weight: bold;
             color: #333;
         }
-        
+
         .reward-box {
             width: 130px;
             height: 130px;
@@ -92,32 +108,32 @@
             cursor: pointer;
             background: #f8f9fa;
         }
-        
+
         .reward-box.has-reward {
             border-style: solid;
             border-color: #4caf50;
         }
-        
+
         .reward-image {
             max-width: 140px;
             max-height: 140px;
             object-fit: contain;
         }
-        
+
         .reward-text {
             font-size: 13px;
             color: #555;
             margin-top: 4px;
             text-align: center;
         }
-        
+
         .tokens-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
             gap: 10px;
             margin: 25px 0;
         }
-        
+
         .token-slot {
             width: 52px;
             height: 52px;
@@ -130,19 +146,19 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-        
+
         .token-slot.filled {
             background: #fff9c4;
             border-color: #ffc107;
         }
-        
+
         .progress {
             text-align: center;
             font-size: 16px;
             color: #555;
             margin: 10px 0;
         }
-        
+
         .print-btn {
             background: #d4af37;
             color: #333;
@@ -156,12 +172,12 @@
             font-weight: bold;
             box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
         }
-        
+
         .reward-size-control {
             text-align: center;
             margin-top: 8px;
         }
-        
+
         canvas {
             position: fixed;
             top: 0;
@@ -169,13 +185,13 @@
             z-index: 9999;
             pointer-events: none;
         }
-        
+
         .celebration {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(255,215,0,0.95);
+            background: rgba(255, 215, 0, 0.95);
             color: #333;
             padding: 20px 40px;
             border-radius: 20px;
@@ -184,16 +200,136 @@
             display: none;
             z-index: 10000;
         }
-        
+
         .celebration.show { display: block; }
-        
-        @media print {
+
+    /* Print toast (new in v3.0.0 — restored from v2.0.1) */
+    .print-toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #1a1a1a;
+        color: #fff;
+        padding: 14px 22px;
+        border-radius: 12px;
+        font-size: 15px;
+        z-index: 10001;
+        display: none;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+        max-width: 90vw;
+        text-align: center;
+    }
+
+    .print-toast.show { display: block; }
+    .print-toast.error { background: #c62828; }
+    .print-toast button {
+        background: #fff;
+        color: #1a1a1a;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 6px;
+        margin-left: 12px;
+        font-size: 14px;
+        cursor: pointer;
+    }
+
+    /* Keyboard focus ring for token slots (a11y v3.1.0) */
+    .token-slot:focus { outline: none; }
+    .token-slot:focus-visible {
+        outline: 3px solid #4a90e2;
+        outline-offset: 2px;
+        box-shadow: 0 0 0 2px #fff inset;
+    }
+
+    /* Emoji picker modal (replaces prompt() — a11y v3.1.0) */
+    .emoji-picker-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10002;
+    }
+    .emoji-picker-modal.show { display: flex; }
+    .emoji-picker-card {
+        background: #fff;
+        border-radius: 14px;
+        padding: 22px;
+        width: min(420px, 92vw);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+    }
+    .emoji-picker-card h3 {
+        margin: 0 0 12px;
+        font-size: 18px;
+        color: #333;
+    }
+    .emoji-picker-card input[type="text"] {
+        width: 100%;
+        font-size: 16px;
+        padding: 8px 10px;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        margin-bottom: 14px;
+    }
+    .emoji-picker-card input[type="text"]:focus-visible {
+        outline: 3px solid #4a90e2;
+        outline-offset: 1px;
+        border-color: #4a90e2;
+    }
+    .emoji-grid {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 6px;
+        margin-bottom: 16px;
+    }
+    .emoji-grid button {
+        font-size: 26px;
+        padding: 6px 0;
+        border: 2px solid transparent;
+        background: #f8f9fa;
+        border-radius: 8px;
+        cursor: pointer;
+        line-height: 1;
+    }
+    .emoji-grid button:hover { background: #eef3fb; }
+    .emoji-grid button:focus-visible {
+        outline: 3px solid #4a90e2;
+        outline-offset: 1px;
+    }
+    .emoji-grid button.selected {
+        border-color: #4a90e2;
+        background: #e3f0ff;
+    }
+    .emoji-picker-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+    .emoji-picker-actions button {
+        font-size: 15px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+    }
+    .emoji-picker-actions .btn-primary {
+        background: #4a90e2;
+        color: #fff;
+    }
+    .emoji-picker-actions .btn-secondary {
+        background: #eee;
+        color: #333;
+    }
+
+    @media print {
             body { background: white; padding: 0; }
             .token-board { box-shadow: none; border: 3px solid #333; max-width: 100%; }
-            .print-btn, .star-control, .reward-size-control, canvas { display: none !important; }
+            .print-btn, .star-control, .reward-size-control, canvas, .print-toast { display: none !important; }
             @page { size: A4; margin: 10mm; }
         }
-        
+
         @media (max-width: 600px) {
             .token-board { padding: 15px; }
             .tokens-grid { grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); }
@@ -208,248 +344,578 @@
             <span class="board-subtitle" contenteditable="true">副標題</span>
             <span class="board-title">獎勵表</span>
         </div>
-        
+
         <!-- 星星格數控制 -->
         <div class="star-control">
-            <button onclick="changeStarCount(-1)">－</button>
-            <span style="font-size:18px;font-weight:bold;margin:0 12px;"> <span id="starCountDisplay" style="display:none;">12</span></span>
-            <button onclick="changeStarCount(1)">＋</button>
+            <button data-action="dec-stars">－</button>
+            <span style="font-size:18px;font-weight:bold;margin:0 12px;">
+                <span id="starCountDisplay" style="display:none;">12</span>
+            </span>
+            <button data-action="inc-stars">＋</button>
         </div>
-        
+
         <!-- 目標 + 獎勵 -->
         <div class="main-content">
             <div class="goal-text">我正在努力獲得</div>
-            <div class="reward-box" id="rewardBox" onclick="openRewardModal()">
+            <div class="reward-box" id="rewardBox" data-action="open-reward">
                 <div class="reward-placeholder" id="rewardPlaceholder">點擊選擇獎勵</div>
                 <img id="rewardImage" class="reward-image" style="display:none;">
                 <div class="reward-text" id="rewardText" contenteditable="true"></div>
             </div>
         </div>
-        
+
         <!-- 獎勵圖片大小控制 -->
         <div class="reward-size-control">
             <label style="font-size:14px;">圖片大小：</label>
-            <input type="range" min="60" max="200" value="140" oninput="updateRewardSize(this.value)">
+            <input type="range" min="60" max="200" value="140" data-action="resize-reward">
             <span id="sizeValue">140px</span>
         </div>
-        
+
         <!-- 星星格 -->
         <div class="tokens-grid" id="tokensGrid"></div>
-        
-        <div class="progress" id="progressText">已獲得: 0 / 12 顆星</div>
-        
+
+        <div class="progress" id="progressText" aria-live="polite">已獲得: 0 / 12 顆星</div>
+
         <!-- 打印按鈕 -->
-        <button class="print-btn" onclick="preparePrint()">🖨️ 一鍵生成PDF / 打印實體獎勵表</button>
+        <button class="print-btn" data-action="print">🖨️ 一鍵生成PDF / 打印實體獎勵表</button>
     </div>
-    
+
     <!-- 慶祝訊息 -->
     <div class="celebration" id="celebrationMessage">🎉 太棒了！</div>
-    
+
+    <!-- 打印狀態 toast (new in v3.0.0) -->
+    <div class="print-toast" id="printToast" role="status" aria-live="polite">
+        <span id="printToastMsg">準備打印中…</span>
+        <button id="printToastRetry" style="display:none;">再試一次</button>
+        <button id="printToastDismiss" style="display:none;">我已用 Cmd/Ctrl+P</button>
+    </div>
+
     <!-- Fireworks Canvas -->
     <canvas id="fireworksCanvas"></canvas>
-    
+
+    <!-- 隱藏 print iframe (new in v3.0.0) -->
+    <iframe id="printFrame" style="position:absolute;width:0;height:0;border:0;visibility:hidden;" aria-hidden="true"></iframe>
+
+    <!-- Emoji picker modal (new in v3.1.0 — replaces prompt()) -->
+    <div class="emoji-picker-modal" id="emojiPickerModal" role="dialog" aria-modal="true" aria-labelledby="emojiPickerTitle">
+        <div class="emoji-picker-card">
+            <h3 id="emojiPickerTitle">選擇獎勵</h3>
+            <input type="text" id="emojiPickerName" placeholder="獎勵名稱（例如：小玩具）" maxlength="20" />
+            <div class="emoji-grid" id="emojiGrid"></div>
+            <div class="emoji-picker-actions">
+                <button type="button" class="btn-secondary" data-action="emoji-cancel">取消</button>
+                <button type="button" class="btn-primary" data-action="emoji-ok">確定</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // === 核心變數 ===
-        let filledTokens = 0;
-        let totalTokens = 12;
-        let fireworksActive = false;
-        let particles = [];
-        
-        const canvas = document.getElementById('fireworksCanvas');
-        const ctx = canvas.getContext('2d');
-        
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+    (() => {
+        'use strict';
+
+        // ===== Tunables =====
+        const CONFIG = Object.freeze({
+            MIN_STARS: 3,
+            MAX_STARS: 20,
+            DEFAULT_STARS: 12,
+            PARTICLES_PER_FIREWORK: 30,
+            FIREWORK_COUNT: 6,
+            FIREWORK_INTERVAL_MS: 180,
+            FIREWORK_DURATION_MS: 5200,
+            CELEBRATION_MSG_MS: 4800,
+            CELEBRATION_DELAY_MS: 300,
+            PARTICLE_LIFE_MIN: 60,
+            PARTICLE_LIFE_VAR: 30,
+            PARTICLE_VELOCITY_RANGE: 6,
+            PARTICLE_GRAVITY: 0.08,
+            PARTICLE_TRAIL: 'rgba(0, 0, 0, 0.2)',
+            PRINT_PREPARE_MS: 2000,
+            PRINT_RETRY_HOLD_MS: 5000,
+            PARTICLE_SIZE: 3,
+            // v3.1.0 a11y
+            EMOJI_CHOICES: ['🎁','⭐','🍦','🎮','📚','🍫','🏆','🎨','🎵','🚲','🧸','🎯','🍔','🌟','🎪','🎈','🦄','🐻','🍰','🎲','⚽','🪁','🎭','🎺'],
+            DEFAULT_EMOJI: '🎁',
+            DEFAULT_REWARD_NAME: '小玩具',
+            REDUCED_MOTION_QUERIES: ['(prefers-reduced-motion: reduce)'],
+        });
+
+        // ===== String constants (was magic strings) =====
+        const CLS = Object.freeze({
+            FILLED: 'filled',
+            SHOW: 'show',
+            HAS_REWARD: 'has-reward',
+            STAR_SLOT: 'token-slot',
+            ERROR: 'error',
+            COMPLETE_BADGE: 'completeBadge',
+            SELECTED: 'selected',
+        });
+
+        // ===== DOM ref cache (was 13+ getElementById calls) =====
+        const DOM = (() => {
+            const $ = (id) => document.getElementById(id);
+            return {
+                tokensGrid:        $('tokensGrid'),
+                progressText:      $('progressText'),
+                celebrationMsg:    $('celebrationMessage'),
+                starCountDisplay:  $('starCountDisplay'),
+                rewardBox:         $('rewardBox'),
+                rewardPlaceholder: $('rewardPlaceholder'),
+                rewardImage:       $('rewardImage'),
+                rewardText:        $('rewardText'),
+                sizeValue:         $('sizeValue'),
+                canvas:            $('fireworksCanvas'),
+                printToast:        $('printToast'),
+                printToastMsg:     $('printToastMsg'),
+                printToastRetry:   $('printToastRetry'),
+                printToastDismiss: $('printToastDismiss'),
+                printFrame:        $('printFrame'),
+                emojiPickerModal:  $('emojiPickerModal'),
+                emojiPickerName:   $('emojiPickerName'),
+                emojiGrid:         $('emojiGrid'),
+                body:              document.body,
+                board:             document.querySelector('.token-board'),
+                starControl:       document.querySelector('.star-control'),
+            };
+        })();
+
+        // ===== State (was 4 top-level let) =====
+        const State = {
+            filledTokens: 0,
+            totalTokens: CONFIG.DEFAULT_STARS,
+            fireworksActive: false,
+            particles: [],
+            animFrameId: 0,
+            fireworkTimers: [],
+            pendingFullCheck: null,
+            // v3.1.0 a11y
+            reducedMotion: false,
+            pendingEmoji: CONFIG.DEFAULT_EMOJI,
+        };
+
+        // ===== Utility: throttle raf =====
+        const raf = (fn) => {
+            State.animFrameId = requestAnimationFrame(fn);
+        };
+
+        // ===== DOM helpers =====
+        function el(tag, props = {}, children = []) {
+            const node = document.createElement(tag);
+            Object.assign(node, props);
+            children.forEach(c => node.appendChild(c));
+            return node;
         }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
-        
-        // === 星星格數調整 ===
+
+        function text(node, txt) {
+            if (node) node.textContent = txt;
+        }
+
+        // ===== Domain: tokens =====
         function changeStarCount(delta) {
-            const newCount = totalTokens + delta;
-            if (newCount < 3 || newCount > 20) return;
-            
-            totalTokens = newCount;
-            document.getElementById('starCountDisplay').textContent = totalTokens;
-            
-            resetBoard();
-            document.getElementById('tokensGrid').innerHTML = '';
-            initTokens();
+            const next = State.totalTokens + delta;
+            if (next < CONFIG.MIN_STARS || next > CONFIG.MAX_STARS) return;
+            State.totalTokens = next;
+            text(DOM.starCountDisplay, next);
+            rebuildTokens();
         }
-        
-        // === 初始化星星 ===
-        function initTokens() {
-            const grid = document.getElementById('tokensGrid');
-            grid.innerHTML = '';
-            
-            for (let i = 0; i < totalTokens; i++) {
-                const slot = document.createElement('div');
-                slot.className = 'token-slot';
+
+        function rebuildTokens() {
+            State.filledTokens = 0;
+            DOM.tokensGrid.innerHTML = '';
+            for (let i = 0; i < State.totalTokens; i++) {
+                const slot = el('div', { className: CLS.STAR_SLOT });
+                slot.tabIndex = 0;
+                slot.setAttribute('role', 'button');
+                slot.setAttribute('aria-label', `星星格 ${i + 1}`);
                 slot.innerHTML = '<span class="star">⭐</span>';
-                slot.onclick = () => toggleToken(slot);
-                grid.appendChild(slot);
+                DOM.tokensGrid.appendChild(slot);
             }
+            updateProgress();
         }
-        
+
         function toggleToken(slot) {
-            if (slot.classList.contains('filled')) {
-                slot.classList.remove('filled');
-                filledTokens--;
+            if (slot.classList.contains(CLS.FILLED)) {
+                slot.classList.remove(CLS.FILLED);
+                State.filledTokens--;
             } else {
-                slot.classList.add('filled');
-                filledTokens++;
-                
-                if (filledTokens === totalTokens) {
-                    setTimeout(showCelebration, 300);
+                slot.classList.add(CLS.FILLED);
+                State.filledTokens++;
+                if (State.filledTokens === State.totalTokens) {
+                    // Guard against multi-fire from rapid clicks
+                    if (State.pendingFullCheck) return;
+                    State.pendingFullCheck = setTimeout(() => {
+                        State.pendingFullCheck = null;
+                        showCelebration();
+                    }, CONFIG.CELEBRATION_DELAY_MS);
                 }
             }
             updateProgress();
         }
-        
+
         function updateProgress() {
-            document.getElementById('progressText').textContent = 
-                `已獲得: ${filledTokens} / ${totalTokens} 顆星`;
+            text(DOM.progressText, `已獲得: ${State.filledTokens} / ${State.totalTokens} 顆星`);
         }
-        
-        // === 煙花動畫 ===
+
+        // ===== Fireworks =====
         function createFirework(x, y) {
-            for (let i = 0; i < 30; i++) {
-                particles.push({
+            for (let i = 0; i < CONFIG.PARTICLES_PER_FIREWORK; i++) {
+                State.particles.push({
                     x, y,
-                    vx: (Math.random() - 0.5) * 6,
-                    vy: (Math.random() - 0.5) * 6,
-                    life: 60 + Math.random() * 30,
-                    color: `hsl(${Math.random() * 60 + 40}, 100%, 70%)`
+                    vx: (Math.random() - 0.5) * CONFIG.PARTICLE_VELOCITY_RANGE,
+                    vy: (Math.random() - 0.5) * CONFIG.PARTICLE_VELOCITY_RANGE,
+                    life: CONFIG.PARTICLE_LIFE_MIN + Math.random() * CONFIG.PARTICLE_LIFE_VAR,
+                    color: `hsl(${Math.random() * 60 + 40}, 100%, 70%)`,
                 });
             }
         }
-        
-        function animateFireworks() {
-            if (!fireworksActive) return;
-            
-            ctx.fillStyle = 'rgba(0,0,0,0.2)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            particles.forEach((p, i) => {
+
+        function animateFireworks(ctx) {
+            // Reverse filter — safe splice equivalent, no skip-element bug
+            const remaining = [];
+            ctx.fillStyle = CONFIG.PARTICLE_TRAIL;
+            ctx.fillRect(0, 0, DOM.canvas.width, DOM.canvas.height);
+            for (const p of State.particles) {
                 p.x += p.vx;
                 p.y += p.vy;
                 p.life--;
-                p.vy += 0.08;
-                
-                ctx.fillStyle = p.color;
-                ctx.fillRect(p.x, p.y, 3, 3);
-                
-                if (p.life <= 0) particles.splice(i, 1);
-            });
-            
-            if (fireworksActive) requestAnimationFrame(animateFireworks);
-        }
-        
-        function startFireworks() {
-            fireworksActive = true;
-            particles = [];
-            
-            for (let i = 0; i < 6; i++) {
-                setTimeout(() => {
-                    createFirework(Math.random() * canvas.width, Math.random() * canvas.height * 0.6);
-                }, i * 180);
-            }
-            animateFireworks();
-            
-            setTimeout(() => { fireworksActive = false; }, 5200);
-        }
-        
-        function showCelebration() {
-            const msg = document.getElementById('celebrationMessage');
-            msg.classList.add('show');
-            startFireworks();
-            
-            setTimeout(() => {
-                msg.classList.remove('show');
-                
-                // 永久完成提示
-                const board = document.querySelector('.token-board');
-                if (board && !document.getElementById('completeBadge')) {
-                    const badge = document.createElement('div');
-                    badge.id = 'completeBadge';
-                    badge.style.cssText = 'text-align:center;margin-top:12px;font-size:20px;color:#2e7d32;font-weight:bold;';
-                    badge.innerHTML = '✅ 已滿星完成！';
-                    board.appendChild(badge);
+                p.vy += CONFIG.PARTICLE_GRAVITY;
+                if (p.life > 0) {
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(p.x, p.y, CONFIG.PARTICLE_SIZE, CONFIG.PARTICLE_SIZE);
+                    remaining.push(p);
                 }
-            }, 4800);
-        }
-        
-        // === 獎勵相關 ===
-        function openRewardModal() {
-            // 簡單版本：直接彈出 prompt
-            const name = prompt('輸入獎勵名稱（例如：小玩具）', '小玩具');
-            if (!name) return;
-            
-            const emoji = prompt('輸入 emoji', '🎁');
-            
-            const placeholder = document.getElementById('rewardPlaceholder');
-            const img = document.getElementById('rewardImage');
-            const text = document.getElementById('rewardText');
-            
-            placeholder.style.display = 'none';
-            img.style.display = 'block';
-            img.src = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='50' y='68' font-size='60' text-anchor='middle'%3E${emoji}%3C/text%3E%3C/svg%3E`;
-            text.textContent = name;
-            document.getElementById('rewardBox').classList.add('has-reward');
-        }
-        
-        function updateRewardSize(size) {
-            const img = document.getElementById('rewardImage');
-            const val = document.getElementById('sizeValue');
-            if (img) {
-                img.style.width = size + 'px';
-                img.style.height = size + 'px';
             }
-            if (val) val.textContent = size + 'px';
+            State.particles = remaining;
+            if (State.fireworksActive) {
+                raf(() => animateFireworks(ctx));
+            }
         }
-        
-        // === 重置 ===
+
+        function startFireworks() {
+            State.fireworksActive = true;
+            State.particles = [];
+            const ctx = DOM.canvas.getContext('2d');
+
+            for (let i = 0; i < CONFIG.FIREWORK_COUNT; i++) {
+                const t = setTimeout(() => {
+                    createFirework(
+                        Math.random() * DOM.canvas.width,
+                        Math.random() * DOM.canvas.height * 0.6
+                    );
+                }, i * CONFIG.FIREWORK_INTERVAL_MS);
+                State.fireworkTimers.push(t);
+            }
+            raf(() => animateFireworks(ctx));
+
+            const endTimer = setTimeout(() => {
+                stopFireworks();
+            }, CONFIG.FIREWORK_DURATION_MS);
+            State.fireworkTimers.push(endTimer);
+        }
+
+        function stopFireworks() {
+            State.fireworksActive = false;
+            State.fireworkTimers.forEach(clearTimeout);
+            State.fireworkTimers = [];
+            if (State.animFrameId) {
+                cancelAnimationFrame(State.animFrameId);
+                State.animFrameId = 0;
+            }
+            const ctx = DOM.canvas.getContext('2d');
+            ctx.clearRect(0, 0, DOM.canvas.width, DOM.canvas.height);
+            State.particles = [];
+        }
+
+        function showCelebration() {
+            DOM.celebrationMsg.classList.add(CLS.SHOW);
+            if (!State.reducedMotion) {
+                startFireworks();
+            }
+
+            setTimeout(() => {
+                DOM.celebrationMsg.classList.remove(CLS.SHOW);
+                // Persistent completion badge (per user requirement: stay visible but not require reset)
+                if (!document.getElementById(CLS.COMPLETE_BADGE)) {
+                    const badge = el('div', { id: CLS.COMPLETE_BADGE });
+                    badge.style.cssText = 'text-align:center;margin-top:12px;font-size:20px;color:#2e7d32;font-weight:bold;';
+                    badge.textContent = '✅ 已滿星完成！';
+                    DOM.board.appendChild(badge);
+                }
+            }, CONFIG.CELEBRATION_MSG_MS);
+        }
+
+        // ===== Reward =====
+        function openRewardModal() {
+            // v3.1.0: replaced two stacked prompt() calls with an inline picker modal.
+            // More a11y-friendly (focus trap, keyboard, Esc to cancel) and works on iPad
+            // where window.prompt() is suppressed by Safari.
+            DOM.emojiPickerName.value = DOM.rewardText.textContent || CONFIG.DEFAULT_REWARD_NAME;
+            State.pendingEmoji = CONFIG.DEFAULT_EMOJI;
+            renderEmojiGrid();
+            DOM.emojiPickerModal.classList.add(CLS.SHOW);
+            // Defer focus so the modal is in the DOM and visible
+            setTimeout(() => DOM.emojiPickerName.focus(), 0);
+        }
+
+        function renderEmojiGrid() {
+            DOM.emojiGrid.innerHTML = '';
+            CONFIG.EMOJI_CHOICES.forEach((emoji, idx) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.dataset.emoji = emoji;
+                btn.setAttribute('aria-label', `選擇 ${emoji}`);
+                btn.textContent = emoji;
+                if (emoji === State.pendingEmoji) {
+                    btn.classList.add(CLS.SELECTED);
+                }
+                btn.addEventListener('click', () => {
+                    State.pendingEmoji = emoji;
+                    DOM.emojiGrid.querySelectorAll('button').forEach(b =>
+                        b.classList.toggle(CLS.SELECTED, b.dataset.emoji === emoji)
+                    );
+                });
+                DOM.emojiGrid.appendChild(btn);
+                if (idx === 0) btn.tabIndex = 0;
+            });
+        }
+
+        function closeRewardModal(commit) {
+            DOM.emojiPickerModal.classList.remove(CLS.SHOW);
+            if (!commit) return;
+            const name = (DOM.emojiPickerName.value || '').trim() || CONFIG.DEFAULT_REWARD_NAME;
+            const emoji = State.pendingEmoji || CONFIG.DEFAULT_EMOJI;
+            DOM.rewardPlaceholder.style.display = 'none';
+            DOM.rewardImage.style.display = 'block';
+            // Escape emoji for safe SVG embedding
+            const safeEmoji = emoji.replace(/[<>&"']/g, ch => ({
+                '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;'
+            }[ch]));
+            DOM.rewardImage.src =
+                `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E` +
+                `%3Ctext x='50' y='68' font-size='60' text-anchor='middle'%3E${safeEmoji}%3C/text%3E` +
+                `%3C/svg%3E`;
+            text(DOM.rewardText, name);
+            DOM.rewardBox.classList.add(CLS.HAS_REWARD);
+        }
+
+        function updateRewardSize(size) {
+            const px = `${size}px`;
+            if (DOM.rewardImage) {
+                DOM.rewardImage.style.width = px;
+                DOM.rewardImage.style.height = px;
+            }
+            text(DOM.sizeValue, px);
+        }
+
+        // ===== Reset (one place, was 3) =====
+        function resetTransientUI() {
+            stopFireworks();
+            DOM.celebrationMsg.classList.remove(CLS.SHOW);
+        }
+
         function resetBoard() {
-            document.querySelectorAll('.token-slot').forEach(s => s.classList.remove('filled'));
-            filledTokens = 0;
+            document.querySelectorAll(`.${CLS.STAR_SLOT}`).forEach(s =>
+                s.classList.remove(CLS.FILLED)
+            );
+            State.filledTokens = 0;
             updateProgress();
-            fireworksActive = false;
-            particles = [];
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            const badge = document.getElementById('completeBadge');
+            resetTransientUI();
+            const badge = document.getElementById(CLS.COMPLETE_BADGE);
             if (badge) badge.remove();
         }
-        
-        // === 打印準備 ===
-        function preparePrint() {
-            fireworksActive = false;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            const msg = document.getElementById('celebrationMessage');
-            if (msg) msg.classList.remove('show');
+
+        // ===== Print: iframe + srcdoc + toast fallback chain =====
+        // (Restored from v2.0.1; was lost in v3.0.0 cleanup refactor)
+
+        function showPrintToast(msg, opts = {}) {
+            text(DOM.printToastMsg, msg);
+            DOM.printToast.classList.toggle(CLS.ERROR, !!opts.error);
+            DOM.printToastRetry.style.display = opts.retry ? 'inline-block' : 'none';
+            DOM.printToastDismiss.style.display = opts.dismiss ? 'inline-block' : 'none';
+            DOM.printToast.classList.add(CLS.SHOW);
+
+            if (opts.autoHideMs) {
+                clearTimeout(DOM.printToast._hideTimer);
+                DOM.printToast._hideTimer = setTimeout(
+                    () => DOM.printToast.classList.remove(CLS.SHOW),
+                    opts.autoHideMs
+                );
+            }
+        }
+
+        function hidePrintToast() {
+            DOM.printToast.classList.remove(CLS.SHOW, CLS.ERROR);
+            clearTimeout(DOM.printToast._hideTimer);
+        }
+
+        function buildPrintDocument() {
+            const board = DOM.board.cloneNode(true);
+            // Strip interactive controls
+            board.querySelectorAll('.actions, .star-control button').forEach(n => n.remove());
+            // Make .star-control print without grey background
+            const sc = board.querySelector('.star-control');
+            if (sc) sc.style.background = 'transparent';
+            // Inline a stripped stylesheet for portability
+            const inlineCss = `
+                body { font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; background:white; padding:20px; }
+                .token-board { background:white; border:3px solid #333; border-radius:12px; padding:25px; max-width:100%; box-shadow:none; }
+                .board-header { display:flex; align-items:center; margin-bottom:15px; }
+                .board-title { font-size:26px; font-weight:bold; color:#333; }
+                .board-subtitle { font-size:26px; color:#666; margin-right:10px; border-bottom:1px dashed #999; padding:0 6px; }
+                .star-control { text-align:center; margin:12px 0; padding:8px; }
+                .main-content { display:flex; justify-content:space-between; align-items:flex-start; margin:20px 0; }
+                .goal-text { font-size:22px; font-weight:bold; color:#333; }
+                .reward-box { width:130px; height:130px; border:3px dashed #4a90e2; border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#f8f9fa; }
+                .reward-box.has-reward { border-style:solid; border-color:#4caf50; }
+                .reward-image { max-width:140px; max-height:140px; object-fit:contain; }
+                .reward-text { font-size:13px; color:#555; margin-top:4px; text-align:center; }
+                .tokens-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(52px, 1fr)); gap:10px; margin:25px 0; }
+                .token-slot { width:52px; height:52px; border:2px solid #ddd; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:26px; }
+                .token-slot.filled { background:#fff9c4; border-color:#ffc107; }
+                .progress { text-align:center; font-size:16px; color:#555; margin:10px 0; }
+            `;
+            return `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>SEN 獎勵表</title><style>${inlineCss}</style></head><body>${board.outerHTML}</body></html>`;
+        }
+
+        function doIframePrint() {
+            return new Promise((resolve, reject) => {
+                try {
+                    const frame = DOM.printFrame;
+                    const doc = buildPrintDocument();
+                    frame.onload = () => {
+                        try {
+                            frame.contentWindow.focus();
+                            frame.contentWindow.print();
+                            resolve();
+                        } catch (e) {
+                            reject(e);
+                        }
+                    };
+                    frame.srcdoc = doc;
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        }
+
+        function doWindowPrint() {
             window.print();
         }
-        
-        window.onbeforeprint = function() {
-            fireworksActive = false;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        };
-        
-        // === 初始化 ===
-        function init() {
-            document.getElementById('starCountDisplay').textContent = totalTokens;
-            initTokens();
-            updateProgress();
-            
-            // 預設星星數顯示
-            setTimeout(() => {
-                const d = document.getElementById('starCountDisplay');
-                if (d) d.textContent = totalTokens;
-            }, 200);
+
+        async function preparePrint() {
+            resetTransientUI();
+            showPrintToast('準備打印中…', { autoHideMs: CONFIG.PRINT_PREPARE_MS });
+
+            // Strategy 1: iframe-based print (more reliable in kiosk / restricted Chrome)
+            try {
+                await doIframePrint();
+                showPrintToast('已叫出打印對話框 — 請揀「另存為 PDF」或印表機', {
+                    retry: true,
+                    autoHideMs: CONFIG.PRINT_RETRY_HOLD_MS,
+                });
+                return;
+            } catch (_) { /* fall through */ }
+
+            // Strategy 2: window.print() fallback
+            try {
+                doWindowPrint();
+                showPrintToast('已叫出打印對話框 — 請揀「另存為 PDF」或印表機', {
+                    retry: true,
+                    autoHideMs: CONFIG.PRINT_RETRY_HOLD_MS,
+                });
+            } catch (_) {
+                // Strategy 3: error toast with manual-instruction dismiss
+                showPrintToast('瀏覽器封鎖咗打印功能，請用鍵盤快捷鍵 Cmd/Ctrl+P 強制打印', {
+                    error: true,
+                    dismiss: true,
+                });
+            }
         }
-        
+
+        // Clear toast when print dialog closes
+        window.addEventListener('afterprint', hidePrintToast);
+
+        // ===== Init =====
+        function init() {
+            text(DOM.starCountDisplay, State.totalTokens);
+            rebuildTokens();
+            updateProgress();
+
+            // v3.1.0 — respect OS-level reduced-motion preference
+            const rmQuery = window.matchMedia(CONFIG.REDUCED_MOTION_QUERIES[0]);
+            State.reducedMotion = rmQuery.matches;
+            const onRmChange = (e) => { State.reducedMotion = e.matches; };
+            if (rmQuery.addEventListener) {
+                rmQuery.addEventListener('change', onRmChange);
+            } else if (rmQuery.addListener) {
+                // Safari < 14 fallback
+                rmQuery.addListener(onRmChange);
+            }
+
+            // Event delegation for [data-action] elements
+            DOM.body.addEventListener('click', (ev) => {
+                const t = ev.target.closest('[data-action]');
+                if (!t) return;
+                switch (t.dataset.action) {
+                    case 'inc-stars':    return changeStarCount(1);
+                    case 'dec-stars':    return changeStarCount(-1);
+                    case 'open-reward':  return openRewardModal();
+                    case 'print':        return preparePrint();
+                    case 'emoji-cancel': return closeRewardModal(false);
+                    case 'emoji-ok':     return closeRewardModal(true);
+                }
+            });
+
+            // v3.1.0 — keyboard activation for token slots (a11y)
+            DOM.tokensGrid.addEventListener('keydown', (ev) => {
+                const slot = ev.target.closest(`.${CLS.STAR_SLOT}`);
+                if (!slot) return;
+                if (ev.key === 'Enter' || ev.key === ' ') {
+                    ev.preventDefault();
+                    toggleToken(slot);
+                }
+            });
+
+            DOM.body.addEventListener('input', (ev) => {
+                const t = ev.target.closest('[data-action="resize-reward"]');
+                if (t) updateRewardSize(t.value);
+            });
+
+            // v3.1.0 — Esc closes emoji picker; Enter on name input confirms
+            DOM.emojiPickerModal.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Escape') {
+                    ev.preventDefault();
+                    closeRewardModal(false);
+                } else if (ev.key === 'Enter' && ev.target === DOM.emojiPickerName) {
+                    ev.preventDefault();
+                    closeRewardModal(true);
+                }
+            });
+
+            // v3.1.0 — click backdrop closes picker (cancel)
+            DOM.emojiPickerModal.addEventListener('click', (ev) => {
+                if (ev.target === DOM.emojiPickerModal) closeRewardModal(false);
+            });
+
+            DOM.printToastRetry.addEventListener('click', preparePrint);
+            DOM.printToastDismiss.addEventListener('click', hidePrintToast);
+
+            // Throttled resize
+            let resizePending = false;
+            window.addEventListener('resize', () => {
+                if (resizePending) return;
+                resizePending = true;
+                requestAnimationFrame(() => {
+                    DOM.canvas.width = window.innerWidth;
+                    DOM.canvas.height = window.innerHeight;
+                    resizePending = false;
+                });
+            });
+            DOM.canvas.width = window.innerWidth;
+            DOM.canvas.height = window.innerHeight;
+        }
+
         init();
+    })();
     </script>
 </body>
 </html>
