@@ -323,6 +323,126 @@
         color: #333;
     }
 
+    /* v3.2.0 — emoji category tabs (food / toy / activity / animal / other) */
+    .emoji-category-tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 10px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .emoji-category-tabs button {
+        flex: 0 0 auto;
+        font-size: 14px;
+        padding: 6px 10px;
+        border: 2px solid transparent;
+        background: #f8f9fa;
+        border-radius: 18px;
+        cursor: pointer;
+        white-space: nowrap;
+        line-height: 1.2;
+    }
+    .emoji-category-tabs button:hover { background: #eef3fb; }
+    .emoji-category-tabs button:focus-visible {
+        outline: 3px solid #4a90e2;
+        outline-offset: 1px;
+    }
+    .emoji-category-tabs button[aria-selected="true"] {
+        background: #e3f0ff;
+        border-color: #4a90e2;
+        color: #1a4d80;
+        font-weight: bold;
+    }
+
+    /* v3.2.0 — custom emoji paste row */
+    .emoji-custom-row {
+        margin-bottom: 14px;
+    }
+    .emoji-custom-row input {
+        width: 100%;
+        font-size: 16px;
+        padding: 8px 10px;
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        background: #fafbfc;
+        text-align: center;
+    }
+    .emoji-custom-row input:focus-visible {
+        outline: 3px solid #4a90e2;
+        outline-offset: 1px;
+        border-color: #4a90e2;
+        background: #fff;
+    }
+
+    /* v3.2.0 — settings gear + popover panel */
+    .settings-gear {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid #ddd;
+        border-radius: 50%;
+        width: 42px;
+        height: 42px;
+        font-size: 20px;
+        cursor: pointer;
+        z-index: 10003;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    .settings-gear:hover { background: #fff; }
+    .settings-gear:focus-visible {
+        outline: 3px solid #4a90e2;
+        outline-offset: 2px;
+    }
+    .settings-panel {
+        position: fixed;
+        top: 64px;
+        right: 16px;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 12px;
+        padding: 16px 18px;
+        width: min(280px, 90vw);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        z-index: 10003;
+    }
+    .settings-panel h3 {
+        margin: 0 0 12px;
+        font-size: 16px;
+        color: #333;
+    }
+    .settings-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        gap: 10px;
+    }
+    .settings-row label {
+        font-size: 14px;
+        color: #555;
+    }
+    .settings-row select {
+        font-size: 14px;
+        padding: 4px 8px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        background: #fff;
+        cursor: pointer;
+    }
+    .settings-row select:focus-visible {
+        outline: 2px solid #4a90e2;
+        outline-offset: 1px;
+    }
+    .settings-hint {
+        font-size: 12px;
+        color: #888;
+        margin-top: 4px;
+    }
+    @media print {
+        .settings-gear, .settings-panel { display: none !important; }
+    }
+
     @media print {
             body { background: white; padding: 0; }
             .token-board { box-shadow: none; border: 3px solid #333; max-width: 100%; }
@@ -396,17 +516,45 @@
     <!-- 隱藏 print iframe (new in v3.0.0) -->
     <iframe id="printFrame" style="position:absolute;width:0;height:0;border:0;visibility:hidden;" aria-hidden="true"></iframe>
 
-    <!-- Emoji picker modal (new in v3.1.0 — replaces prompt()) -->
+    <!-- Emoji picker modal (v3.1.0 — replaces prompt(); v3.2.0 — +category tabs +recent) -->
     <div class="emoji-picker-modal" id="emojiPickerModal" role="dialog" aria-modal="true" aria-labelledby="emojiPickerTitle">
         <div class="emoji-picker-card">
             <h3 id="emojiPickerTitle">選擇獎勵</h3>
             <input type="text" id="emojiPickerName" placeholder="獎勵名稱（例如：小玩具）" maxlength="20" />
-            <div class="emoji-grid" id="emojiGrid"></div>
+            <div class="emoji-category-tabs" id="emojiCategoryTabs" role="tablist"></div>
+            <div class="emoji-grid" id="emojiGrid" role="tabpanel"></div>
+            <div class="emoji-custom-row">
+                <input type="text" id="emojiCustomInput" placeholder="或貼上任何 emoji（例：🦄）" maxlength="4" data-action="custom-emoji-input" />
+            </div>
             <div class="emoji-picker-actions">
                 <button type="button" class="btn-secondary" data-action="emoji-cancel">取消</button>
                 <button type="button" class="btn-primary" data-action="emoji-ok">確定</button>
             </div>
         </div>
+    </div>
+
+    <!-- Settings panel (v3.2.0 — gear icon popover) -->
+    <button type="button" class="settings-gear" id="settingsGear" data-action="toggle-settings" aria-label="設定" aria-expanded="false">⚙️</button>
+    <div class="settings-panel" id="settingsPanel" role="dialog" aria-modal="false" aria-labelledby="settingsTitle" hidden>
+        <h3 id="settingsTitle">設定</h3>
+        <div class="settings-row">
+            <label for="settingVfx">視覺特效</label>
+            <select id="settingVfx" data-setting="vfxMode">
+                <option value="combo">組合(煙花+紙屑+⭐)</option>
+                <option value="spark">煙花</option>
+                <option value="confetti">紙屑</option>
+                <option value="star">⭐ 爆發</option>
+                <option value="none">無</option>
+            </select>
+        </div>
+        <div class="settings-row">
+            <label for="settingMute">音效</label>
+            <select id="settingMute" data-setting="muted">
+                <option value="false">開啟</option>
+                <option value="true">靜音</option>
+            </select>
+        </div>
+        <div class="settings-hint">設定會自動儲存</div>
     </div>
 
     <script>
@@ -437,6 +585,24 @@
             DEFAULT_EMOJI: '🎁',
             DEFAULT_REWARD_NAME: '小玩具',
             REDUCED_MOTION_QUERIES: ['(prefers-reduced-motion: reduce)'],
+            // v3.2.0 — emoji categories + persistence
+            EMOJI_CATEGORIES: [
+                { id: 'recent',  label: '最近',   icon: '🕘' },
+                { id: 'food',    label: '食物',   icon: '🍔',
+                  emojis: ['🍦','🍫','🍔','🍰','🍕','🍎','🍩','🥤','🍓','🍪','🍇','🍉','🥕','🌽','🍿','🥨'] },
+                { id: 'toy',     label: '玩具',   icon: '🧸',
+                  emojis: ['🎮','🧸','🎲','🪁','🎨','🎭','🧩','🚂','🪀','🎪','🎯','🏀','🏐','🎱','🎳','🎰'] },
+                { id: 'activity', label: '活動',  icon: '🚲',
+                  emojis: ['🚲','📚','🎵','🏆','⚽','🏀','🎬','🎤','🎺','🎸','🎻','🎹','🎼','🎢','🎡','✈️'] },
+                { id: 'animal',  label: '動物',   icon: '🐻',
+                  emojis: ['🐻','🦄','🐶','🐱','🐰','🦊','🐼','🦋','🐢','🐠','🐯','🐸','🐵','🦁','🐮','🐷'] },
+                { id: 'other',   label: '其他',   icon: '🌟',
+                  emojis: ['🎁','⭐','🌟','🎈','🎉','🏅','💎','🪄','🎢','🎠','🎇','✨','💫','🌈','🎊','🎋'] },
+            ],
+            EMOJI_RECENT_MAX: 5,
+            STORAGE_KEY: 'sen-reward-board:v3.2.0',
+            DEFAULT_VFX_MODE: 'combo',
+            DEFAULT_MUTED: false,
         });
 
         // ===== String constants (was magic strings) =====
@@ -472,6 +638,13 @@
                 emojiPickerModal:  $('emojiPickerModal'),
                 emojiPickerName:   $('emojiPickerName'),
                 emojiGrid:         $('emojiGrid'),
+                emojiCategoryTabs: $('emojiCategoryTabs'),
+                customEmojiInput:  $('emojiCustomInput'),
+                // v3.2.0 — settings panel
+                settingsGear:      $('settingsGear'),
+                settingsPanel:     $('settingsPanel'),
+                settingVfx:        $('settingVfx'),
+                settingMute:       $('settingMute'),
                 body:              document.body,
                 board:             document.querySelector('.token-board'),
                 starControl:       document.querySelector('.star-control'),
@@ -536,9 +709,11 @@
             if (slot.classList.contains(CLS.FILLED)) {
                 slot.classList.remove(CLS.FILLED);
                 State.filledTokens--;
+                if (!State.muted) SFX.tickOff();
             } else {
                 slot.classList.add(CLS.FILLED);
                 State.filledTokens++;
+                if (!State.muted) SFX.tickOn();
                 if (State.filledTokens === State.totalTokens) {
                     // Guard against multi-fire from rapid clicks
                     if (State.pendingFullCheck) return;
@@ -557,6 +732,8 @@
 
         // ===== Fireworks =====
         function createFirework(x, y) {
+            // v3.2.0 — particles now carry a `shape` discriminator so the
+            // single animation loop can render multiple visual effects in parallel.
             for (let i = 0; i < CONFIG.PARTICLES_PER_FIREWORK; i++) {
                 State.particles.push({
                     x, y,
@@ -564,6 +741,46 @@
                     vy: (Math.random() - 0.5) * CONFIG.PARTICLE_VELOCITY_RANGE,
                     life: CONFIG.PARTICLE_LIFE_MIN + Math.random() * CONFIG.PARTICLE_LIFE_VAR,
                     color: `hsl(${Math.random() * 60 + 40}, 100%, 70%)`,
+                    shape: 'spark',
+                    rot: 0,
+                    rv: 0,
+                });
+            }
+        }
+
+        // Confetti — rotating rectangles with horizontal gust drift
+        function createConfetti(x, y) {
+            const palette = ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#1dd1a1', '#5f27cd'];
+            for (let i = 0; i < CONFIG.PARTICLES_PER_FIREWORK; i++) {
+                State.particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * CONFIG.PARTICLE_VELOCITY_RANGE * 0.8,
+                    vy: (Math.random() - 0.7) * CONFIG.PARTICLE_VELOCITY_RANGE,
+                    life: CONFIG.PARTICLE_LIFE_MIN * 1.5 + Math.random() * CONFIG.PARTICLE_LIFE_VAR,
+                    color: palette[Math.floor(Math.random() * palette.length)],
+                    shape: 'confetti',
+                    rot: Math.random() * Math.PI * 2,
+                    rv: (Math.random() - 0.5) * 0.25,
+                });
+            }
+        }
+
+        // Star burst — emoji particles (reward emoji if set, else ⭐)
+        function createStarBurst(x, y) {
+            const glyph = State.rewardEmoji || '⭐';
+            for (let i = 0; i < CONFIG.PARTICLES_PER_FIREWORK; i++) {
+                const angle = (i / CONFIG.PARTICLES_PER_FIREWORK) * Math.PI * 2;
+                const speed = 2 + Math.random() * 4;
+                State.particles.push({
+                    x, y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: CONFIG.PARTICLE_LIFE_MIN * 1.2,
+                    color: '#ffffff',
+                    shape: 'star',
+                    glyph,
+                    rot: 0,
+                    rv: (Math.random() - 0.5) * 0.1,
                 });
             }
         }
@@ -578,9 +795,31 @@
                 p.y += p.vy;
                 p.life--;
                 p.vy += CONFIG.PARTICLE_GRAVITY;
+                p.rot += p.rv;
                 if (p.life > 0) {
-                    ctx.fillStyle = p.color;
-                    ctx.fillRect(p.x, p.y, CONFIG.PARTICLE_SIZE, CONFIG.PARTICLE_SIZE);
+                    if (p.shape === 'confetti') {
+                        // Rotating rectangle, larger than spark
+                        ctx.save();
+                        ctx.translate(p.x, p.y);
+                        ctx.rotate(p.rot);
+                        ctx.fillStyle = p.color;
+                        ctx.fillRect(-4, -3, 8, 6);
+                        ctx.restore();
+                    } else if (p.shape === 'star') {
+                        // Emoji glyph with rotation
+                        ctx.save();
+                        ctx.translate(p.x, p.y);
+                        ctx.rotate(p.rot);
+                        ctx.font = '22px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(p.glyph, 0, 0);
+                        ctx.restore();
+                    } else {
+                        // Default spark (unchanged from v3.1.0)
+                        ctx.fillStyle = p.color;
+                        ctx.fillRect(p.x, p.y, CONFIG.PARTICLE_SIZE, CONFIG.PARTICLE_SIZE);
+                    }
                     remaining.push(p);
                 }
             }
@@ -594,13 +833,27 @@
             State.fireworksActive = true;
             State.particles = [];
             const ctx = DOM.canvas.getContext('2d');
+            const mode = State.vfxMode;
+
+            // Dispatch which effects to fire, based on user-selected mode
+            const effects = {
+                'spark':    ['spark'],
+                'confetti': ['confetti'],
+                'star':     ['star'],
+                'combo':    ['spark', 'confetti', 'star'],  // 預設 = 全包
+                'none':     [],
+            }[mode] || ['spark'];
 
             for (let i = 0; i < CONFIG.FIREWORK_COUNT; i++) {
                 const t = setTimeout(() => {
-                    createFirework(
-                        Math.random() * DOM.canvas.width,
-                        Math.random() * DOM.canvas.height * 0.6
-                    );
+                    if (effects.length === 0) return;
+                    const x = Math.random() * DOM.canvas.width;
+                    const y = Math.random() * DOM.canvas.height * 0.6;
+                    effects.forEach(eff => {
+                        if (eff === 'spark')    createFirework(x, y);
+                        if (eff === 'confetti') createConfetti(x, y);
+                        if (eff === 'star')     createStarBurst(x, y);
+                    });
                 }, i * CONFIG.FIREWORK_INTERVAL_MS);
                 State.fireworkTimers.push(t);
             }
@@ -627,6 +880,7 @@
 
         function showCelebration() {
             DOM.celebrationMsg.classList.add(CLS.SHOW);
+            if (!State.muted) SFX.celebrate();
             if (!State.reducedMotion) {
                 startFireworks();
             }
@@ -643,22 +897,188 @@
             }, CONFIG.CELEBRATION_MSG_MS);
         }
 
+        // ===== SFX (Web Audio synth, no external files) =====
+        // Why Web Audio: keeps index.html self-contained (no .mp3/.wav assets).
+        // All sounds are short oscillator envelopes — <1ms CPU per cue, paused when muted.
+        const SFX = (() => {
+            let ctx = null;
+            const ensure = () => {
+                if (ctx) return ctx;
+                try {
+                    const AC = window.AudioContext || window.webkitAudioContext;
+                    ctx = AC ? new AC() : null;
+                } catch (_) { ctx = null; }
+                return ctx;
+            };
+            // Resume on first user gesture (mobile autoplay policy)
+            const resume = () => {
+                if (ctx && ctx.state === 'suspended') ctx.resume();
+            };
+
+            // Generic tone: type, freq, dur, gain, attack, release
+            const tone = (type, freq, dur, gain = 0.15, attack = 0.005, release = 0.04) => {
+                const ac = ensure();
+                if (!ac) return;
+                resume();
+                const osc = ac.createOscillator();
+                const env = ac.createGain();
+                osc.type = type;
+                osc.frequency.value = freq;
+                env.gain.setValueAtTime(0, ac.currentTime);
+                env.gain.linearRampToValueAtTime(gain, ac.currentTime + attack);
+                env.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur + release);
+                osc.connect(env).connect(ac.destination);
+                osc.start();
+                osc.stop(ac.currentTime + dur + release);
+            };
+
+            // Pitch sweep: start → end freq over dur
+            const sweep = (type, fStart, fEnd, dur, gain = 0.12) => {
+                const ac = ensure();
+                if (!ac) return;
+                resume();
+                const osc = ac.createOscillator();
+                const env = ac.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(fStart, ac.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(fEnd, ac.currentTime + dur);
+                env.gain.setValueAtTime(0, ac.currentTime);
+                env.gain.linearRampToValueAtTime(gain, ac.currentTime + 0.005);
+                env.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
+                osc.connect(env).connect(ac.destination);
+                osc.start();
+                osc.stop(ac.currentTime + dur);
+            };
+
+            // Note: a tone + a sweep is fine on their own; arpeggio = sequence of tones.
+            return {
+                isAvailable: () => !!ensure(),
+                resume,
+                // 5 SFX touchpoints (per user choice)
+                tickOn:    () => tone('triangle', 880, 0.06, 0.12),          // toggleToken on
+                tickOff:   () => tone('square',   220, 0.04, 0.08),          // toggleToken off
+                celebrate: () => {                                          // 滿星 arpeggio do-mi-sol-do
+                    const seq = [660, 784, 880, 1046];
+                    seq.forEach((f, i) => setTimeout(() => tone('triangle', f, 0.12, 0.18), i * 110));
+                },
+                rewardOpen: () => sweep('sine', 800, 600, 0.08, 0.1),       // reward box click
+                sliderTick: () => tone('sine', 1200, 0.015, 0.05),          // size slider drag
+                whoosh:     () => sweep('sawtooth', 200, 1200, 0.25, 0.08), // print launch
+            };
+        })();
+
+        // ===== Settings (localStorage-backed, per-user) =====
+        // v3.2.0 — persists VFX mode, mute state, and recent emoji history.
+        // Reads on init(), writes on change. Safe to call before init() returns defaults.
+        const Settings = (() => {
+            const cache = {};
+            try {
+                const raw = localStorage.getItem(CONFIG.STORAGE_KEY);
+                if (raw) Object.assign(cache, JSON.parse(raw));
+            } catch (_) { /* corrupt JSON — ignore, use defaults */ }
+
+            const persist = () => {
+                try {
+                    localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(cache));
+                } catch (_) { /* quota / private mode — silent */ }
+            };
+            return {
+                get(key) { return cache[key]; },
+                set(key, value) { cache[key] = value; persist(); },
+            };
+        })();
+
+        // v3.2.0 — read persisted settings into State
+        State.vfxMode = Settings.get('vfxMode') || CONFIG.DEFAULT_VFX_MODE;
+        State.muted   = Settings.get('muted')   ?? CONFIG.DEFAULT_MUTED;
+        State.rewardEmoji = Settings.get('rewardEmoji') || CONFIG.DEFAULT_EMOJI;
+
+        function toggleSettingsPanel() {
+            const open = DOM.settingsPanel.hasAttribute('hidden');
+            if (open) {
+                DOM.settingsPanel.removeAttribute('hidden');
+                DOM.settingsGear.setAttribute('aria-expanded', 'true');
+                // Sync selects with current State
+                DOM.settingVfx.value = State.vfxMode;
+                DOM.settingMute.value = State.muted ? 'true' : 'false';
+            } else {
+                DOM.settingsPanel.setAttribute('hidden', '');
+                DOM.settingsGear.setAttribute('aria-expanded', 'false');
+            }
+        }
+
         // ===== Reward =====
+        // v3.2.0 — emoji picker: category tabs + custom paste + recent history.
+        // State.activeCategory drives which set of emoji is rendered in the grid.
+        const State2 = {
+            activeCategory: 'recent',
+        };
+
         function openRewardModal() {
-            // v3.1.0: replaced two stacked prompt() calls with an inline picker modal.
-            // More a11y-friendly (focus trap, keyboard, Esc to cancel) and works on iPad
-            // where window.prompt() is suppressed by Safari.
+            if (!State.muted) SFX.rewardOpen();
             DOM.emojiPickerName.value = DOM.rewardText.textContent || CONFIG.DEFAULT_REWARD_NAME;
-            State.pendingEmoji = CONFIG.DEFAULT_EMOJI;
+            // v3.2.0 — initialise pendingEmoji from current reward if set, else default
+            State.pendingEmoji = State.rewardEmoji || CONFIG.DEFAULT_EMOJI;
+            // v3.2.0 — try to land on a category that contains the pending emoji
+            State2.activeCategory = findCategoryOfEmoji(State.pendingEmoji) || 'recent';
+            renderEmojiCategoryTabs();
             renderEmojiGrid();
+            DOM.customEmojiInput.value = '';
             DOM.emojiPickerModal.classList.add(CLS.SHOW);
             // Defer focus so the modal is in the DOM and visible
             setTimeout(() => DOM.emojiPickerName.focus(), 0);
         }
 
+        function findCategoryOfEmoji(emoji) {
+            for (const cat of CONFIG.EMOJI_CATEGORIES) {
+                if (cat.emojis && cat.emojis.includes(emoji)) return cat.id;
+            }
+            return null;
+        }
+
+        function getCurrentCategoryEmojis() {
+            const cat = CONFIG.EMOJI_CATEGORIES.find(c => c.id === State2.activeCategory);
+            if (!cat) return [];
+            if (cat.id === 'recent') return Settings.get('recentEmojis') || [];
+            return cat.emojis || [];
+        }
+
+        function renderEmojiCategoryTabs() {
+            DOM.emojiCategoryTabs.innerHTML = '';
+            const recent = Settings.get('recentEmojis') || [];
+            CONFIG.EMOJI_CATEGORIES.forEach(cat => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.dataset.category = cat.id;
+                btn.setAttribute('role', 'tab');
+                btn.setAttribute('aria-selected', cat.id === State2.activeCategory ? 'true' : 'false');
+                btn.setAttribute('aria-controls', 'emojiGrid');
+                if (cat.id === 'recent') {
+                    btn.textContent = `${cat.icon} ${cat.label}${recent.length ? ` (${recent.length})` : ''}`;
+                    if (recent.length === 0) btn.disabled = true;
+                } else {
+                    btn.textContent = `${cat.icon} ${cat.label}`;
+                }
+                btn.addEventListener('click', () => {
+                    State2.activeCategory = cat.id;
+                    renderEmojiCategoryTabs();
+                    renderEmojiGrid();
+                });
+                DOM.emojiCategoryTabs.appendChild(btn);
+            });
+        }
+
         function renderEmojiGrid() {
             DOM.emojiGrid.innerHTML = '';
-            CONFIG.EMOJI_CHOICES.forEach((emoji, idx) => {
+            const emojis = getCurrentCategoryEmojis();
+            if (emojis.length === 0) {
+                const empty = document.createElement('div');
+                empty.style.cssText = 'grid-column:1/-1;text-align:center;color:#888;padding:14px;font-size:13px;';
+                empty.textContent = '未有最近用過嘅 emoji';
+                DOM.emojiGrid.appendChild(empty);
+                return;
+            }
+            emojis.forEach((emoji, idx) => {
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.dataset.emoji = emoji;
@@ -672,6 +1092,8 @@
                     DOM.emojiGrid.querySelectorAll('button').forEach(b =>
                         b.classList.toggle(CLS.SELECTED, b.dataset.emoji === emoji)
                     );
+                    // Reflect custom input back to empty
+                    if (DOM.customEmojiInput) DOM.customEmojiInput.value = '';
                 });
                 DOM.emojiGrid.appendChild(btn);
                 if (idx === 0) btn.tabIndex = 0;
@@ -681,8 +1103,10 @@
         function closeRewardModal(commit) {
             DOM.emojiPickerModal.classList.remove(CLS.SHOW);
             if (!commit) return;
+            // v3.2.0 — prefer custom-typed emoji over pendingEmoji if user pasted one
+            const customVal = (DOM.customEmojiInput && DOM.customEmojiInput.value || '').trim();
+            const emoji = customVal || State.pendingEmoji || CONFIG.DEFAULT_EMOJI;
             const name = (DOM.emojiPickerName.value || '').trim() || CONFIG.DEFAULT_REWARD_NAME;
-            const emoji = State.pendingEmoji || CONFIG.DEFAULT_EMOJI;
             DOM.rewardPlaceholder.style.display = 'none';
             DOM.rewardImage.style.display = 'block';
             // Escape emoji for safe SVG embedding
@@ -695,6 +1119,19 @@
                 `%3C/svg%3E`;
             text(DOM.rewardText, name);
             DOM.rewardBox.classList.add(CLS.HAS_REWARD);
+            // v3.2.0 — persist reward emoji + add to recent history
+            State.rewardEmoji = emoji;
+            recordRecentEmoji(emoji);
+        }
+
+        // v3.2.0 — keep a rolling history of recently used emoji in localStorage
+        function recordRecentEmoji(emoji) {
+            if (!emoji) return;
+            const recent = Settings.get('recentEmojis') || [];
+            const filtered = recent.filter(e => e !== emoji);
+            filtered.unshift(emoji);
+            const trimmed = filtered.slice(0, CONFIG.EMOJI_RECENT_MAX);
+            Settings.set('recentEmojis', trimmed);
         }
 
         function updateRewardSize(size) {
@@ -704,6 +1141,7 @@
                 DOM.rewardImage.style.height = px;
             }
             text(DOM.sizeValue, px);
+            if (!State.muted) SFX.sliderTick();
         }
 
         // ===== Reset (one place, was 3) =====
@@ -803,6 +1241,7 @@
 
         async function preparePrint() {
             resetTransientUI();
+            if (!State.muted) SFX.whoosh();
             showPrintToast('準備打印中…', { autoHideMs: CONFIG.PRINT_PREPARE_MS });
 
             // Strategy 1: iframe-based print (more reliable in kiosk / restricted Chrome)
@@ -856,12 +1295,13 @@
                 const t = ev.target.closest('[data-action]');
                 if (!t) return;
                 switch (t.dataset.action) {
-                    case 'inc-stars':    return changeStarCount(1);
-                    case 'dec-stars':    return changeStarCount(-1);
-                    case 'open-reward':  return openRewardModal();
-                    case 'print':        return preparePrint();
-                    case 'emoji-cancel': return closeRewardModal(false);
-                    case 'emoji-ok':     return closeRewardModal(true);
+                    case 'inc-stars':       return changeStarCount(1);
+                    case 'dec-stars':       return changeStarCount(-1);
+                    case 'open-reward':     return openRewardModal();
+                    case 'print':           return preparePrint();
+                    case 'emoji-cancel':    return closeRewardModal(false);
+                    case 'emoji-ok':        return closeRewardModal(true);
+                    case 'toggle-settings': return toggleSettingsPanel();
                 }
             });
 
@@ -898,6 +1338,39 @@
 
             DOM.printToastRetry.addEventListener('click', preparePrint);
             DOM.printToastDismiss.addEventListener('click', hidePrintToast);
+
+            // v3.2.0 — settings select handlers (persist on change)
+            DOM.settingVfx.addEventListener('change', (ev) => {
+                State.vfxMode = ev.target.value;
+                Settings.set('vfxMode', State.vfxMode);
+            });
+            DOM.settingMute.addEventListener('change', (ev) => {
+                State.muted = ev.target.value === 'true';
+                Settings.set('muted', State.muted);
+                if (!State.muted) SFX.resume();  // unlock audio on first unmute
+            });
+
+            // v3.2.0 — Esc closes settings panel (when emoji picker is closed)
+            DOM.body.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Escape' &&
+                    !DOM.settingsPanel.hasAttribute('hidden') &&
+                    !DOM.emojiPickerModal.classList.contains(CLS.SHOW)) {
+                    toggleSettingsPanel();
+                }
+            });
+
+            // v3.2.0 — click outside settings panel closes it
+            document.addEventListener('click', (ev) => {
+                if (DOM.settingsPanel.hasAttribute('hidden')) return;
+                if (DOM.settingsPanel.contains(ev.target) || DOM.settingsGear.contains(ev.target)) return;
+                toggleSettingsPanel();
+            });
+
+            // v3.2.0 — custom emoji input: clear pendingEmoji's .selected highlight
+            // when user types; live preview is the input itself
+            DOM.customEmojiInput.addEventListener('input', () => {
+                DOM.emojiGrid.querySelectorAll('button').forEach(b => b.classList.remove(CLS.SELECTED));
+            });
 
             // Throttled resize
             let resizePending = false;
