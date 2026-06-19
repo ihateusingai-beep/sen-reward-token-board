@@ -1492,6 +1492,12 @@
                 }
             });
 
+            // v3.2.2 — click to toggle token stars (missing after clean refactor)
+            DOM.tokensGrid.addEventListener('click', (ev) => {
+                const slot = ev.target.closest(`.${CLS.STAR_SLOT}`);
+                if (slot) toggleToken(slot);
+            });
+
             DOM.body.addEventListener('input', (ev) => {
                 const t = ev.target.closest('[data-action="resize-reward"]');
                 if (t) updateRewardSize(t.value);
