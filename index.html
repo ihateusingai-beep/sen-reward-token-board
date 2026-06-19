@@ -66,32 +66,27 @@
 
         .star-control {
             text-align: center;
-            margin: 14px 0 10px;        /* v3.2.3 — tighter to grid, more breathing from header */
+            margin: 12px 0;
             background: #f8f9fa;
             padding: 8px;
             border-radius: 8px;
         }
 
         .star-control button {
-            background: #d4af37;          /* v3.2.3 — gold theme (was blue, clashed with reward box border) */
-            color: #333;
+            background: #4a90e2;
+            color: white;
             border: none;
             padding: 6px 14px;
             border-radius: 20px;
             font-size: 16px;
             margin: 0 4px;
             cursor: pointer;
-            font-weight: 600;
         }
-        .star-control button:hover { background: #c69e2e; }
-        .star-control button:focus-visible { outline: 2px solid #4a90e2; outline-offset: 2px; }
 
         .main-content {
             display: flex;
-            justify-content: center;       /* v3.2.3 — center goal + reward, was space-between */
-            align-items: center;
-            gap: 40px;
-            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: flex-start;
             margin: 20px 0;
         }
 
@@ -102,8 +97,8 @@
         }
 
         .reward-box {
-            width: 140px;                   /* v3.2.3 — was 130px */
-            height: 140px;
+            width: 130px;
+            height: 130px;
             border: 3px dashed #4a90e2;
             border-radius: 10px;
             display: flex;
@@ -112,15 +107,6 @@
             justify-content: center;
             cursor: pointer;
             background: #f8f9fa;
-            padding: 8px;
-            box-sizing: border-box;
-        }
-        .reward-box .reward-placeholder {
-            font-size: 14px;                /* v3.2.3 — was 12px, more legible hint */
-            color: #4a90e2;
-            text-align: center;
-            line-height: 1.3;
-            font-weight: 500;
         }
 
         .reward-box.has-reward {
@@ -143,11 +129,9 @@
 
         .tokens-grid {
             display: grid;
-            /* v3.2.3 — fixed columns via JS-set --cols var (default 6 for 12 stars → 6×2) */
-            grid-template-columns: repeat(var(--cols, 6), 1fr);
+            grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
             gap: 10px;
             margin: 25px 0;
-            justify-content: center;       /* center the grid horizontally */
         }
 
         .token-slot {
@@ -252,10 +236,7 @@
 
         .reward-size-control {
             text-align: center;
-            margin-top: 4px;            /* v3.2.3 — was 8px, tighter to reward box */
-            margin-bottom: 8px;
-            font-size: 13px;
-            color: #666;
+            margin-top: 8px;
         }
 
         canvas {
@@ -514,16 +495,6 @@
         outline: 2px solid #4a90e2;
         outline-offset: 1px;
     }
-    .settings-row input[type="checkbox"] {
-        width: 18px;
-        height: 18px;
-        cursor: pointer;
-        accent-color: #d4af37;  /* match gold theme */
-    }
-    .settings-row input[type="checkbox"]:focus-visible {
-        outline: 2px solid #4a90e2;
-        outline-offset: 2px;
-    }
     .settings-hint {
         font-size: 12px;
         color: #888;
@@ -544,18 +515,10 @@
         }
 
         @media (max-width: 600px) {
-            .token-board { padding: 12px; }                          /* v3.2.3 — was 15px, more breathing */
-            .main-content { gap: 20px; flex-direction: column; }    /* v3.2.3 — stack goal above reward on mobile */
-            .goal-text { font-size: 18px; }                          /* v3.2.3 — smaller for mobile */
-            .reward-box { width: 120px; height: 120px; }             /* v3.2.3 — was 140px, fits narrow screens */
-            .reward-box .reward-placeholder { font-size: 12px; }
-            /* v3.2.3 — fixed-width columns on mobile so 1fr doesn't blow out the grid */
-            .tokens-grid { grid-template-columns: repeat(var(--cols, 4), 46px); }
+            .token-board { padding: 15px; }
+            .tokens-grid { grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); }
             .token-slot { width: 46px; height: 46px; font-size: 22px; }
-            .print-btn { font-size: 14px; padding: 10px 18px; }       /* v3.2.3 — was 14px 36px, allow wrap */
         }
-        /* v3.2.3 — prevent horizontal overflow on extreme narrow viewports */
-        body { overflow-x: hidden; }
     </style>
 </head>
 <body>
@@ -675,10 +638,6 @@
                 <option value="tap-mute">無聲</option>
             </select>
         </div>
-        <div class="settings-row">
-            <label for="settingHaptic">觸感回饋</label>
-            <input type="checkbox" id="settingHaptic" data-setting="hapticEnabled" checked />
-        </div>
         <div class="settings-hint">設定會自動儲存</div>
     </div>
 
@@ -730,17 +689,6 @@
             DEFAULT_MUTED: false,
             DEFAULT_POP_SOUND: 'pop-classic',
             DEFAULT_TAP_SOUND: 'tap-classic',
-            DEFAULT_HAPTIC: true,
-            // v3.2.2 — haptic patterns (ms). Each value is fed straight to navigator.vibrate(pattern).
-            // Single number = single pulse; array = pulse/pause/pulse sequence.
-            HAPTIC: Object.freeze({
-                fill:        8,                       // tap
-                unfill:      5,                       // tick
-                celebrate:   [15, 60, 15, 60, 30],    // do-mi-sol-do sync
-                rewardOpen:  12,
-                sliderTick:  3,
-                whoosh:      20,
-            }),
         });
 
         // ===== String constants (was magic strings) =====
@@ -785,7 +733,6 @@
                 settingMute:       $('settingMute'),
                 settingPop:        $('settingPop'),     // v3.2.1 — pop sound preset
                 settingTap:        $('settingTap'),     // v3.2.1 — tap sound preset
-                settingHaptic:     $('settingHaptic'),  // v3.2.2 — haptic on/off
                 body:              document.body,
                 board:             document.querySelector('.token-board'),
                 starControl:       document.querySelector('.star-control'),
@@ -805,35 +752,6 @@
             reducedMotion: false,
             pendingEmoji: CONFIG.DEFAULT_EMOJI,
         };
-
-        // ===== Haptic (v3.2.2 — navigator.vibrate wrapper) =====
-        // Safe on iOS Safari, Chrome Android. No-op on desktop browsers / older
-        // Safari that lack the API. Respects prefers-reduced-motion + opt-out toggle.
-        const Haptic = (() => {
-            const supported = () => typeof navigator !== 'undefined'
-                && typeof navigator.vibrate === 'function';
-            // Detect prefers-reduced-motion once at startup; OS-level (not CSS-only)
-            const reducedMotion = () => !!(window.matchMedia
-                && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-            const allowed = () => supported()
-                && (State && State.hapticEnabled)
-                && !reducedMotion();
-            return {
-                isSupported: supported,
-                isAllowed:   allowed,
-                // pattern: number | number[]
-                pulse(pattern) {
-                    if (!allowed()) return false;
-                    try { return navigator.vibrate(pattern); }
-                    catch (_) { return false; }
-                },
-                // cancel any ongoing pattern (call before starting a new sequence)
-                cancel() {
-                    if (!supported()) return;
-                    try { navigator.vibrate(0); } catch (_) { /* ignore */ }
-                },
-            };
-        })();
 
         // ===== Utility: throttle raf =====
         const raf = (fn) => {
@@ -864,11 +782,6 @@
         function rebuildTokens() {
             State.filledTokens = 0;
             DOM.tokensGrid.innerHTML = '';
-            // v3.2.3 — pick column count to keep grid visually balanced.
-            // Mobile viewports use a different default to stay symmetric.
-            const isMobile = window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
-            const cols = pickColumnCount(State.totalTokens, isMobile);
-            DOM.tokensGrid.style.setProperty('--cols', cols);
             for (let i = 0; i < State.totalTokens; i++) {
                 const slot = el('div', { className: CLS.STAR_SLOT });
                 slot.tabIndex = 0;
@@ -879,21 +792,6 @@
                 DOM.tokensGrid.appendChild(slot);
             }
             updateProgress();
-        }
-        // v3.2.3 — pick a balanced column count for N stars.
-        // Desktop: 12 → 6×2, 16 → 8×2. Mobile (≤600px): 12 → 4×3, 16 → 4×4.
-        function pickColumnCount(n, isMobile) {
-            if (isMobile) {
-                if (n <= 4)  return n;         // 3 → 3×1
-                if (n <= 8)  return 4;         // 5–8 → 4×N
-                if (n <= 12) return 4;         // 9–12 → 4×3
-                if (n <= 16) return 4;         // 13–16 → 4×4
-                return 5;                       // 17–20 → 5×N
-            }
-            if (n <= 6)  return n;             // 3 → 3×1, 6 → 6×1
-            if (n <= 12) return 6;             // 7–12 → 6×N (12 → 6×2)
-            if (n <= 16) return 8;             // 13–16 → 8×2
-            return 10;                          // 17–20 → 10×2
         }
 
         function toggleToken(slot) {
@@ -1224,31 +1122,19 @@
                     const preset = (State && State.tapSound) || DEFAULT_TAP;
                     const fn = TAP_PRESETS[preset] || TAP_PRESETS[DEFAULT_TAP];
                     fn();
-                    Haptic.pulse(CONFIG.HAPTIC.fill);
                 },
                 tickOff:   () => {                                          // v3.2.1 — pop preset
                     const preset = (State && State.popSound) || DEFAULT_POP;
                     const fn = POP_PRESETS[preset] || POP_PRESETS[DEFAULT_POP];
                     fn();
-                    Haptic.pulse(CONFIG.HAPTIC.unfill);
                 },
                 celebrate: () => {                                          // 滿星 arpeggio do-mi-sol-do
                     const seq = [660, 784, 880, 1046];
                     seq.forEach((f, i) => setTimeout(() => tone('triangle', f, 0.12, 0.18), i * 110));
-                    Haptic.pulse(CONFIG.HAPTIC.celebrate);
                 },
-                rewardOpen: () => {                                        // reward box click
-                    sweep('sine', 800, 600, 0.08, 0.1);
-                    Haptic.pulse(CONFIG.HAPTIC.rewardOpen);
-                },
-                sliderTick: () => {                                        // size slider drag
-                    tone('sine', 1200, 0.015, 0.05);
-                    Haptic.pulse(CONFIG.HAPTIC.sliderTick);
-                },
-                whoosh:     () => {                                        // print launch
-                    sweep('sawtooth', 200, 1200, 0.25, 0.08);
-                    Haptic.pulse(CONFIG.HAPTIC.whoosh);
-                },
+                rewardOpen: () => sweep('sine', 800, 600, 0.08, 0.1),       // reward box click
+                sliderTick: () => tone('sine', 1200, 0.015, 0.05),          // size slider drag
+                whoosh:     () => sweep('sawtooth', 200, 1200, 0.25, 0.08), // print launch
             };
         })();
 
@@ -1281,8 +1167,6 @@
         State.popSound = Settings.get('popSound') || CONFIG.DEFAULT_POP_SOUND;
         // v3.2.1 — tap sound preset
         State.tapSound = Settings.get('tapSound') || CONFIG.DEFAULT_TAP_SOUND;
-        // v3.2.2 — haptic enabled flag
-        State.hapticEnabled = Settings.get('hapticEnabled') ?? CONFIG.DEFAULT_HAPTIC;
 
         function toggleSettingsPanel() {
             const open = DOM.settingsPanel.hasAttribute('hidden');
@@ -1294,7 +1178,6 @@
                 DOM.settingMute.value = State.muted ? 'true' : 'false';
                 if (DOM.settingPop) DOM.settingPop.value = State.popSound;
                 if (DOM.settingTap) DOM.settingTap.value = State.tapSound;
-                if (DOM.settingHaptic) DOM.settingHaptic.checked = !!State.hapticEnabled;
             } else {
                 DOM.settingsPanel.setAttribute('hidden', '');
                 DOM.settingsGear.setAttribute('aria-expanded', 'false');
@@ -1658,15 +1541,6 @@
                     State.tapSound = ev.target.value;
                     Settings.set('tapSound', State.tapSound);
                     if (!State.muted) SFX.tickOn();
-                });
-            }
-            // v3.2.2 — haptic toggle: persist + immediate demo pulse
-            if (DOM.settingHaptic) {
-                DOM.settingHaptic.addEventListener('change', (ev) => {
-                    State.hapticEnabled = ev.target.checked;
-                    Settings.set('hapticEnabled', State.hapticEnabled);
-                    // Demo one pulse so user can verify it works on their device
-                    if (State.hapticEnabled) Haptic.pulse(15);
                 });
             }
 

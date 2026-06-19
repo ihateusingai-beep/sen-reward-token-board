@@ -4,45 +4,6 @@ All notable changes to **Sen Reward Token Board** are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versioning follows [Semantic Versioning](https://semver.org/).
 
-## [3.2.2] — 2026-06-19
-
-### Added — Haptic feedback
-- `navigator.vibrate` wrapper (`Haptic` module) wired into all 6 SFX touchpoints
-- **Patterns** (milliseconds):
-  - Fill star — `[8]` short tap
-  - Unfill star — `[5]` tick
-  - Full star — `[15, 60, 15, 60, 30]` three-pulse synced to arpeggio
-  - Reward box — `[12]` pop
-  - Slider drag — `[3]` micro-tick
-  - Print whoosh — `[20]` launch push
-- **Settings toggle** — "觸感回饋" checkbox (default ON); toggling ON demos a 15 ms pulse so user can verify it works on their device
-- **Safety**: gracefully no-ops on browsers without `navigator.vibrate`; respects `prefers-reduced-motion: reduce` (auto-disabled); `try/catch` wraps all calls
-
-### Fixed — CSS layout regressions
-- `.main-content` was `justify-content: space-between` → reward box floated to far right; changed to `center + gap: 40px + flex-wrap`
-- `.tokens-grid` 12 stars rendered as **10 + 2 (asymmetric)** due to `minmax(52px, 1fr)`; switched to `repeat(var(--cols, 6), 1fr)` with `pickColumnCount(n, isMobile)` helper → **6×2 perfectly symmetric**
-- `.reward-box` enlarged 130→140 px; placeholder text enlarged 12→14 px in blue
-- `.reward-size-control` margin tightened from 8→4 px to sit closer to reward box
-- `.star-control` +/- buttons recolored blue→gold (`#d4af37`) to match theme (was clashing with reward box border color)
-- **Mobile bonus fixes**:
-  - `.main-content` stacks vertically (`flex-direction: column`) on ≤600 px
-  - `.tokens-grid` mobile uses fixed `repeat(N, 46px)` to stop `1fr` blowing past container width
-  - Mobile `pickColumnCount` returns 4 cols for 5–16 stars (12 → 4×3 symmetric, 16 → 4×4)
-  - `body { overflow-x: hidden }` guards extreme-narrow viewports
-  - `.print-btn` font + padding tightened so long Chinese label doesn't overflow on 375 px screens
-
-### Preserved
-- Reward box, tokens grid, progress, print button behavior — **unchanged** (only positioning/sizing)
-- Print fallback chain (`iframe` → `srcdoc` → `window.open` → toast hint) — **unchanged**
-- v3.1.0 + v3.2.0 + v3.2.1 keyboard nav, a11y, reduced-motion, sound presets — **still in effect**
-- Settings panel hidden in `@media print` — sound + haptic selectors **never leak to print**
-
-### Quality
-- 1571 → **1698 lines** (+127, all additive CSS/JS)
-- `node --check` syntax OK
-- 68 CSS brace pairs (balanced)
-- Visual regression tested at 1280×1100 desktop + 375×900 mobile (iPhone SE size)
-
 ## [3.2.1] — 2026-06-19
 
 ### Fixed — Star default visual
