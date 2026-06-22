@@ -4,6 +4,19 @@ All notable changes to **Sen Reward Token Board** are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versioning follows [Semantic Versioning](https://semver.org/).
 
+## [3.2.3] — 2026-06-22
+
+### Added — PWA (Progressive Web App)
+- **`manifest.json`** — full manifest with name, theme color `#4a90e2`, standalone display, portrait-primary orientation
+- **`sw.js`** — Service Worker with cache-first strategy; offline-capable after first load
+- **`icons/icon-192.png` / icons/icon-512.png` — app icons (blue circle + gold star)
+- **iOS Safari PWA** — `apple-mobile-web-app-*` meta tags for "Add to Home Screen"
+- SW auto-registers on `window.load`; cache invalidates on new `sw.js` deploy
+- Offline fallback returns cached `index.html` for navigation requests
+
+### Fixed — Print output
+- Print button text (`🖨️ 一鍵生成PDF / 打印實體獎勵表`) now hidden in print CSS — only emoji visible
+
 ## [3.2.1] — 2026-06-19
 
 ### Fixed — Star default visual
