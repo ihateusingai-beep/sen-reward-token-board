@@ -5,15 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SEN 獎勵表</title>
 
-    <!-- PWA -->
-    <meta name="theme-color" content="#4a90e2">
-    <meta name="description" content="SEN 獎勵星星表 — 點擊獲得 ⭐，集齊換獎勵，即時列印">
-    <link rel="manifest" href="manifest.json">
-    <!-- iOS Safari PWA support -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="獎勵表">
-    <link rel="apple-touch-icon" href="icons/icon-192.png">
     <style>
         /* ============================================================
          * SEN Token Reward Board — single-file vanilla JS
@@ -1605,17 +1596,6 @@
 
         init();
     })();
-
-    // ── PWA: register Service Worker ────────────────────────────────────────
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').then((reg) => {
-          console.log('[SW] Registered, scope:', reg.scope);
-        }).catch((err) => {
-          console.warn('[SW] Registration failed:', err);
-        });
-      });
-    }
     </script>
 </body>
 </html>
